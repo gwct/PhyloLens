@@ -71,6 +71,10 @@ npm run compile
 
 Press `F5` in VS Code to launch the Extension Development Host.
 
+## Changelog
+
+- See `CHANGELOG.md` for release history and notable changes.
+
 ## Example Trees
 
 All example trees now live under `examples/`.
