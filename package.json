@@ -2,6 +2,7 @@
   "name": "phylolens",
   "displayName": "PhyloLens",
   "description": "View phylogenetic trees in VS Code (Newick, NEXUS, PhyloXML, NeXML).",
+  "icon": "etc/PhyloLens-icon-dark.png",
   "version": "0.1.0",
   "publisher": "gwct",
   "license": "MIT",
