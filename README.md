@@ -39,13 +39,14 @@ This project was developed with significant assistance from a large language mod
 
 - Layouts: `Rectangular (lengths)`, `Rectangular (equal)`, `Radial (lengths, curved)`, `Radial (lengths, straight)`, `Radial (equal, curved)`, `Radial (equal, straight)`.
 - Zoom and pan with `+`, `-`, mouse wheel, and drag.
-- `Fit` and `Reset` view controls.
+- `Fit` view control (centers/fits tree with overlays visible).
 - Scale indicator badge + optional scale bar in-canvas.
+- Display toggles include branch lengths, scale bar, tip/internal labels, and node shapes.
 - Selection-aware actions: root on selected branch, unroot, swap selected node child order, collapse/expand selected clade.
-- Undo and revert-to-original support.
+- Global undo (`Ctrl+Z` / `Cmd+Z`) for tree edits and view changes, plus revert-to-original.
 - Save edited tree with `Save As...` in Newick/NEXUS/PhyloXML/NeXML.
 - Export rendered tree to `SVG` or `PNG`.
-- Search taxon/node labels with `Prev/Next` navigation and match counter.
+- Search taxon/node labels with `Prev/Next`, `Clear`, and a match counter.
 - Branch hover details (length and descendant tip count).
 
 ## Metadata Badges

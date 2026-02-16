@@ -498,7 +498,7 @@ svg {
   cursor: pointer;
 }
 
-.canvas-wrap.node-shapes-hidden .node-circle {
+.canvas-wrap.node-shapes-hidden .node-circle:not(.is-highlighted):not(.is-search-hit) {
   fill: rgba(255, 255, 255, 0);
   stroke: rgba(0, 0, 0, 0);
   stroke-width: 12;
@@ -515,8 +515,13 @@ svg {
 }
 
 .node-circle.is-search-hit {
-  stroke: #177da6;
+  stroke: #0b63ff;
   stroke-width: 2.1;
+}
+
+.node-circle.is-search-focus {
+  stroke: #ff8c00;
+  stroke-width: 2.6;
 }
 
 .node-circle.is-collapsed {
@@ -530,8 +535,18 @@ svg {
 }
 
 .label.search-focus-label {
-  fill: #177da6;
+  fill: #ff8c00;
   font-weight: 600;
+}
+
+.label.search-hit-label {
+  fill: #0b63ff;
+  font-weight: 600;
+}
+
+.label.search-hit-label.search-focus-label {
+  fill: #ff8c00;
+  font-weight: 700;
 }
 
 .branch-length {

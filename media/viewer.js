@@ -22,6 +22,7 @@ const showNodeShapesSelectEl = document.getElementById("showNodeShapesSelect");
 const showTipLabelsSelectEl = document.getElementById("showTipLabelsSelect");
 const showInternalLabelsSelectEl = document.getElementById("showInternalLabelsSelect");
 const taxaSearchInputEl = document.getElementById("taxaSearchInput");
+const clearSearchBtnEl = document.getElementById("clearSearchBtn");
 const searchPrevBtnEl = document.getElementById("searchPrevBtn");
 const searchNextBtnEl = document.getElementById("searchNextBtn");
 const searchCounterEl = document.getElementById("searchCounter");
@@ -36,7 +37,6 @@ const revertBtnEl = document.getElementById("revertBtn");
 const zoomOutBtnEl = document.getElementById("zoomOutBtn");
 const zoomInBtnEl = document.getElementById("zoomInBtn");
 const fitBtnEl = document.getElementById("fitBtn");
-const resetViewBtnEl = document.getElementById("resetViewBtn");
 const resetToolbarLayoutBtnEl = document.getElementById("resetToolbarLayoutBtn");
 const saveAsBtnEl = document.getElementById("saveAsBtn");
 const exportSvgBtnEl = document.getElementById("exportSvgBtn");
@@ -104,6 +104,9 @@ if (layoutSelectEl) {
     if (!VALID_LAYOUTS.has(next)) {
       return;
     }
+    if (next !== currentLayout && workingTree) {
+      pushUndoState();
+    }
 
     currentLayout = next;
     if (workingTree) {
@@ -115,6 +118,9 @@ if (layoutSelectEl) {
 
 if (highlightPolySelectEl) {
   highlightPolySelectEl.addEventListener("change", () => {
+    if (workingTree && highlightPolytomies !== Boolean(highlightPolySelectEl.checked)) {
+      pushUndoState();
+    }
     highlightPolytomies = Boolean(highlightPolySelectEl.checked);
     if (workingTree) {
       renderTree(workingTree);
@@ -125,6 +131,9 @@ if (highlightPolySelectEl) {
 
 if (showLengthsSelectEl) {
   showLengthsSelectEl.addEventListener("change", () => {
+    if (workingTree && showBranchLengths !== Boolean(showLengthsSelectEl.checked)) {
+      pushUndoState();
+    }
     showBranchLengths = Boolean(showLengthsSelectEl.checked);
     if (workingTree) {
       renderTree(workingTree);
@@ -135,15 +144,22 @@ if (showLengthsSelectEl) {
 
 if (showBranchHoverDetailsSelectEl) {
   showBranchHoverDetailsSelectEl.addEventListener("change", () => {
+    if (workingTree && showBranchHoverDetails !== Boolean(showBranchHoverDetailsSelectEl.checked)) {
+      pushUndoState();
+    }
     showBranchHoverDetails = Boolean(showBranchHoverDetailsSelectEl.checked);
     if (!showBranchHoverDetails) {
       hideHoverInfo();
     }
+    updateActionState();
   });
 }
 
 if (showScaleBarSelectEl) {
   showScaleBarSelectEl.addEventListener("change", () => {
+    if (workingTree && showScaleBar !== Boolean(showScaleBarSelectEl.checked)) {
+      pushUndoState();
+    }
     showScaleBar = Boolean(showScaleBarSelectEl.checked);
     if (workingTree) {
       renderTree(workingTree);
@@ -154,6 +170,9 @@ if (showScaleBarSelectEl) {
 
 if (showNodeShapesSelectEl) {
   showNodeShapesSelectEl.addEventListener("change", () => {
+    if (workingTree && showNodeShapes !== Boolean(showNodeShapesSelectEl.checked)) {
+      pushUndoState();
+    }
     showNodeShapes = Boolean(showNodeShapesSelectEl.checked);
     applyNodeShapeVisibility();
     if (workingTree) {
@@ -165,6 +184,9 @@ if (showNodeShapesSelectEl) {
 
 if (showTipLabelsSelectEl) {
   showTipLabelsSelectEl.addEventListener("change", () => {
+    if (workingTree && showTipLabels !== Boolean(showTipLabelsSelectEl.checked)) {
+      pushUndoState();
+    }
     showTipLabels = Boolean(showTipLabelsSelectEl.checked);
     if (workingTree) {
       renderTree(workingTree);
@@ -175,6 +197,9 @@ if (showTipLabelsSelectEl) {
 
 if (showInternalLabelsSelectEl) {
   showInternalLabelsSelectEl.addEventListener("change", () => {
+    if (workingTree && showInternalLabels !== Boolean(showInternalLabelsSelectEl.checked)) {
+      pushUndoState();
+    }
     showInternalLabels = Boolean(showInternalLabelsSelectEl.checked);
     if (workingTree) {
       renderTree(workingTree);
@@ -185,7 +210,11 @@ if (showInternalLabelsSelectEl) {
 
 if (taxaSearchInputEl) {
   taxaSearchInputEl.addEventListener("input", () => {
-    taxaSearchTerm = String(taxaSearchInputEl.value || "").trim();
+    const nextTerm = String(taxaSearchInputEl.value || "").trim();
+    if (workingTree && nextTerm !== taxaSearchTerm) {
+      pushUndoState();
+    }
+    taxaSearchTerm = nextTerm;
     refreshTaxaSearchMatches();
     if (workingTree) {
       renderTree(workingTree);
@@ -210,6 +239,12 @@ if (searchNextBtnEl) {
 if (searchPrevBtnEl) {
   searchPrevBtnEl.addEventListener("click", () => {
     jumpToPrevTaxaMatch();
+  });
+}
+
+if (clearSearchBtnEl) {
+  clearSearchBtnEl.addEventListener("click", () => {
+    clearTaxaSearch(true);
   });
 }
 
@@ -368,11 +403,7 @@ if (unrootBtnEl) {
 
 if (undoBtnEl) {
   undoBtnEl.addEventListener("click", () => {
-    if (undoStack.length === 0) {
-      return;
-    }
-    const previous = undoStack.pop();
-    restoreState(previous);
+    performUndo();
   });
 }
 
@@ -395,25 +426,28 @@ if (revertBtnEl) {
 
 if (zoomInBtnEl) {
   zoomInBtnEl.addEventListener("click", () => {
+    if (workingTree) {
+      pushUndoState();
+    }
     zoomAtViewportCenter(1.2);
   });
 }
 
 if (zoomOutBtnEl) {
   zoomOutBtnEl.addEventListener("click", () => {
+    if (workingTree) {
+      pushUndoState();
+    }
     zoomAtViewportCenter(1 / 1.2);
   });
 }
 
 if (fitBtnEl) {
   fitBtnEl.addEventListener("click", () => {
+    if (workingTree) {
+      pushUndoState();
+    }
     fitToView();
-  });
-}
-
-if (resetViewBtnEl) {
-  resetViewBtnEl.addEventListener("click", () => {
-    resetView();
   });
 }
 
@@ -455,6 +489,7 @@ if (exportPngBtnEl) {
 }
 
 initializeToolbarDragDrop();
+initializeGlobalUndoHotkey();
 
 window.addEventListener("message", (event) => {
   const msg = event.data;
@@ -938,20 +973,23 @@ function renderRectangular(root, equalDepth) {
   const hideRootMarker = rootedExplicit === false;
 
   for (const node of nodes) {
+    const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
     if (!(hideRootMarker && node.id === root.id)) {
       const polyClass = polyIds.has(node.id) ? " is-polytomy" : "";
       const matchClass = matchedNodeIds.has(node.id) ? " is-search-hit" : "";
+      const focusNodeClass = isSearchFocus ? " is-search-focus" : "";
       const collapsedClass = Array.isArray(node._collapsedChildren) && node._collapsedChildren.length > 0 ? " is-collapsed" : "";
-      geometry += `<circle class="node-circle${polyClass}${matchClass}${collapsedClass}" data-id="${node.id}" data-name="${escapeXml(node.name || "")}" data-length="${Number.isFinite(node.length) ? node.length : ""}" data-tip-count="${node.tipCount}" data-is-tip="${node.children.length === 0 ? "1" : "0"}" data-start="${node.start}" data-end="${node.end}" cx="${node.sx}" cy="${node.sy}" r="4"></circle>`;
+      geometry += `<circle class="node-circle${polyClass}${matchClass}${focusNodeClass}${collapsedClass}" data-id="${node.id}" data-name="${escapeXml(node.name || "")}" data-length="${Number.isFinite(node.length) ? node.length : ""}" data-tip-count="${node.tipCount}" data-is-tip="${node.children.length === 0 ? "1" : "0"}" data-start="${node.start}" data-end="${node.end}" cx="${node.sx}" cy="${node.sy}" r="4"></circle>`;
     }
-    const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
     if ((showTipLabels || isSearchFocus) && node.name && node.children.length === 0) {
-      const focusClass = isSearchFocus && !showTipLabels ? " search-focus-label" : "";
-      labels += `<text class="label${focusClass}" x="${node.sx + 8}" y="${node.sy}">${escapeXml(node.name)}</text>`;
+      const searchClass = matchedNodeIds.has(node.id) && showTipLabels ? " search-hit-label" : "";
+      const focusClass = isSearchFocus ? " search-focus-label" : "";
+      labels += `<text class="label${searchClass}${focusClass}" x="${node.sx + 8}" y="${node.sy}">${escapeXml(node.name)}</text>`;
     }
     if ((showInternalLabels || isSearchFocus) && node.name && node.children.length > 0) {
-      const focusClass = isSearchFocus && !showInternalLabels ? " search-focus-label" : "";
-      labels += `<text class="label${focusClass}" x="${node.sx + 8}" y="${node.sy}">${escapeXml(node.name)}</text>`;
+      const searchClass = matchedNodeIds.has(node.id) && showInternalLabels ? " search-hit-label" : "";
+      const focusClass = isSearchFocus ? " search-focus-label" : "";
+      labels += `<text class="label${searchClass}${focusClass}" x="${node.sx + 8}" y="${node.sy}">${escapeXml(node.name)}</text>`;
     }
   }
 
@@ -1066,26 +1104,29 @@ function renderPolar(root, depthMode, edgeMode) {
   const hideRootMarker = rootedExplicit === false;
 
   for (const node of nodes) {
+    const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
     if (!(hideRootMarker && node.id === root.id)) {
       const polyClass = polyIds.has(node.id) ? " is-polytomy" : "";
       const matchClass = matchedNodeIds.has(node.id) ? " is-search-hit" : "";
+      const focusNodeClass = isSearchFocus ? " is-search-focus" : "";
       const collapsedClass = Array.isArray(node._collapsedChildren) && node._collapsedChildren.length > 0 ? " is-collapsed" : "";
-      geometry += `<circle class="node-circle${polyClass}${matchClass}${collapsedClass}" data-id="${node.id}" data-name="${escapeXml(node.name || "")}" data-length="${Number.isFinite(node.length) ? node.length : ""}" data-tip-count="${node.tipCount}" data-is-tip="${node.children.length === 0 ? "1" : "0"}" data-start="${node.start}" data-end="${node.end}" cx="${node.sx}" cy="${node.sy}" r="4"></circle>`;
+      geometry += `<circle class="node-circle${polyClass}${matchClass}${focusNodeClass}${collapsedClass}" data-id="${node.id}" data-name="${escapeXml(node.name || "")}" data-length="${Number.isFinite(node.length) ? node.length : ""}" data-tip-count="${node.tipCount}" data-is-tip="${node.children.length === 0 ? "1" : "0"}" data-start="${node.start}" data-end="${node.end}" cx="${node.sx}" cy="${node.sy}" r="4"></circle>`;
     }
-    const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
     if ((showTipLabels || isSearchFocus) && node.name && node.children.length === 0) {
       const offset = Math.cos(node.angle) >= 0 ? 8 : -8;
       const anchor = Math.cos(node.angle) >= 0 ? "start" : "end";
-      const focusClass = isSearchFocus && !showTipLabels ? " search-focus-label" : "";
-      labels += `<text class="label${focusClass}" text-anchor="${anchor}" x="${node.sx + offset}" y="${node.sy}">${escapeXml(node.name)}</text>`;
+      const searchClass = matchedNodeIds.has(node.id) && showTipLabels ? " search-hit-label" : "";
+      const focusClass = isSearchFocus ? " search-focus-label" : "";
+      labels += `<text class="label${searchClass}${focusClass}" text-anchor="${anchor}" x="${node.sx + offset}" y="${node.sy}">${escapeXml(node.name)}</text>`;
     }
     if ((showInternalLabels || isSearchFocus) && node.name && node.children.length > 0) {
-      const focusClass = isSearchFocus && !showInternalLabels ? " search-focus-label" : "";
+      const searchClass = matchedNodeIds.has(node.id) && showInternalLabels ? " search-hit-label" : "";
+      const focusClass = isSearchFocus ? " search-focus-label" : "";
       const placement = polarInternalLabelPlacement(node);
       const lx = node.sx + Math.cos(placement.angle) * placement.offset;
       const ly = node.sy + Math.sin(placement.angle) * placement.offset;
       const anchor = polarTextAnchor(placement.angle);
-      labels += `<text class="label${focusClass}" text-anchor="${anchor}" x="${lx}" y="${ly}">${escapeXml(node.name)}</text>`;
+      labels += `<text class="label${searchClass}${focusClass}" text-anchor="${anchor}" x="${lx}" y="${ly}">${escapeXml(node.name)}</text>`;
     }
   }
 
@@ -1159,6 +1200,7 @@ function bindInteractions() {
   const svgEl = wrapEl.querySelector("svg");
   const viewportEl = wrapEl.querySelector("#viewport");
   const contentEl = wrapEl.querySelector("#tree-content");
+  const overlayEl = wrapEl.querySelector("#overlay");
   const circles = Array.from(wrapEl.querySelectorAll(".node-circle"));
   const edgeVisuals = Array.from(wrapEl.querySelectorAll(".edge"));
   const edgeHits = Array.from(wrapEl.querySelectorAll(".edge-hit"));
@@ -1242,7 +1284,7 @@ function bindInteractions() {
     updateActionState();
   });
 
-  latestRender = { circles, edgeVisuals, edgeHits, svgEl, viewportEl, contentEl };
+  latestRender = { circles, edgeVisuals, edgeHits, svgEl, viewportEl, contentEl, overlayEl };
 
   if (selectedNodeId) {
     const selected = circles.find((circle) => circle.getAttribute("data-id") === selectedNodeId);
@@ -1323,7 +1365,7 @@ function initializeZoom(width, height) {
   const viewportEl = latestRender.viewportEl;
 
   if (!hasUserViewport) {
-    const fitted = computeFitTransform(contentEl, width, height, 18);
+    const fitted = computePreferredFitTransform(width, height);
     if (fitted) {
       viewTransform = fitted;
     } else {
@@ -1335,11 +1377,19 @@ function initializeZoom(width, height) {
 
   let isPanning = false;
   let panStart = null;
+  let lastWheelUndoAt = 0;
 
   svgEl.addEventListener(
     "wheel",
     (event) => {
       event.preventDefault();
+      if (workingTree) {
+        const now = Date.now();
+        if (now - lastWheelUndoAt > 300) {
+          pushUndoState();
+          lastWheelUndoAt = now;
+        }
+      }
       const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
       zoomAtClientPoint(factor, event.clientX, event.clientY);
     },
@@ -1361,6 +1411,9 @@ function initializeZoom(width, height) {
       return;
     }
 
+    if (workingTree) {
+      pushUndoState();
+    }
     isPanning = true;
     panStart = {
       x: svgPoint.x,
@@ -1466,7 +1519,7 @@ function fitToView() {
   }
 
   const { width, height } = getSvgViewportSize(latestRender.svgEl);
-  const fitted = computeFitTransform(latestRender.contentEl, width, height, 18);
+  const fitted = computePreferredFitTransform(width, height);
   if (!fitted) {
     return;
   }
@@ -1477,14 +1530,51 @@ function fitToView() {
   updateStatus();
 }
 
-function resetView() {
-  if (!latestRender || !latestRender.viewportEl) {
-    return;
+function computePreferredFitTransform(width, height) {
+  if (!latestRender || !latestRender.contentEl) {
+    return null;
   }
-  viewTransform = { tx: 0, ty: 0, scale: 1 };
-  applyViewTransform(latestRender.viewportEl, viewTransform);
-  hasUserViewport = true;
-  updateStatus();
+
+  // Slightly larger default padding keeps opening/Fit view from feeling cramped.
+  const fitted = computeFitTransform(latestRender.contentEl, width, height, 28);
+  if (!fitted) {
+    return null;
+  }
+
+  if (!showScaleBar || !latestRender.overlayEl) {
+    return fitted;
+  }
+
+  return nudgeTransformToKeepElementVisible(fitted, latestRender.overlayEl, width, height, 14);
+}
+
+function nudgeTransformToKeepElementVisible(transform, element, width, height, margin) {
+  const bbox = element.getBBox();
+  if (!Number.isFinite(bbox.x) || !Number.isFinite(bbox.y) || !Number.isFinite(bbox.width) || !Number.isFinite(bbox.height)) {
+    return transform;
+  }
+
+  let tx = transform.tx;
+  let ty = transform.ty;
+  const s = transform.scale;
+  const left = tx + bbox.x * s;
+  const right = tx + (bbox.x + bbox.width) * s;
+  const top = ty + bbox.y * s;
+  const bottom = ty + (bbox.y + bbox.height) * s;
+
+  if (left < margin) {
+    tx += margin - left;
+  } else if (right > width - margin) {
+    tx -= right - (width - margin);
+  }
+
+  if (top < margin) {
+    ty += margin - top;
+  } else if (bottom > height - margin) {
+    ty -= bottom - (height - margin);
+  }
+
+  return { tx, ty, scale: s };
 }
 
 function getSvgViewportSize(svgEl) {
@@ -1739,7 +1829,11 @@ function updateBadges() {
 
   fileStateEl.title =
     "Compares current viewer tree state to the file originally opened in this viewer. Save As is tracked separately.";
-  const synced = sourceTree && workingTree ? treesEquivalent(sourceTree, workingTree) : null;
+  // User-facing sync state also treats equal-depth layouts as "edited" relative to
+  // source-length view, since displayed branch depth no longer reflects source lengths.
+  const layoutLengthPreserving =
+    currentLayout === "phylogram" || currentLayout === "radial_lengths_curved" || currentLayout === "radial_lengths_straight";
+  const synced = sourceTree && workingTree ? treesEquivalent(sourceTree, workingTree) && layoutLengthPreserving : null;
   if (synced === true) {
     fileStateEl.textContent = "Unchanged from source file";
     fileStateEl.className = "badge sync-good";
@@ -1927,9 +2021,6 @@ function updateActionState() {
   if (fitBtnEl) {
     fitBtnEl.disabled = !latestRender || !latestRender.svgEl;
   }
-  if (resetViewBtnEl) {
-    resetViewBtnEl.disabled = !latestRender || !latestRender.svgEl;
-  }
   if (saveAsBtnEl) {
     saveAsBtnEl.disabled = !workingTree;
   }
@@ -1944,6 +2035,9 @@ function updateActionState() {
   }
   if (searchNextBtnEl) {
     searchNextBtnEl.disabled = taxaSearchMatches.length === 0;
+  }
+  if (clearSearchBtnEl) {
+    clearSearchBtnEl.disabled = taxaSearchTerm.length === 0 && taxaSearchMatches.length === 0;
   }
   if (toggleCollapseBtnEl) {
     toggleCollapseBtnEl.disabled = !canToggleSelectedNodeCollapse();
@@ -2014,6 +2108,9 @@ function refreshTaxaSearchMatches() {
   if (!workingTree) {
     taxaSearchMatches = [];
     taxaSearchIndex = -1;
+    selectedNodeId = null;
+    selectedEdgeKey = null;
+    selectedEdgeTargetNodeId = null;
     updateActionState();
     return;
   }
@@ -2022,6 +2119,10 @@ function refreshTaxaSearchMatches() {
   if (query.length === 0) {
     taxaSearchMatches = [];
     taxaSearchIndex = -1;
+    // Clearing search also clears focus selection.
+    selectedNodeId = null;
+    selectedEdgeKey = null;
+    selectedEdgeTargetNodeId = null;
     updateActionState();
     return;
   }
@@ -2047,12 +2148,43 @@ function refreshTaxaSearchMatches() {
   taxaSearchMatches = matches;
   if (matches.length === 0) {
     taxaSearchIndex = -1;
-  } else if (taxaSearchIndex < 0 || taxaSearchIndex >= matches.length) {
-    taxaSearchIndex = 0;
-    selectedNodeId = matches[0];
+    selectedNodeId = null;
+    selectedEdgeKey = null;
+    selectedEdgeTargetNodeId = null;
+  } else {
+    const currentIndex = selectedNodeId ? matches.indexOf(selectedNodeId) : -1;
+    if (currentIndex >= 0) {
+      taxaSearchIndex = currentIndex;
+    } else if (taxaSearchIndex < 0 || taxaSearchIndex >= matches.length) {
+      taxaSearchIndex = 0;
+      selectedNodeId = matches[0];
+      selectedEdgeKey = null;
+      selectedEdgeTargetNodeId = null;
+    } else {
+      selectedNodeId = matches[taxaSearchIndex];
+      selectedEdgeKey = null;
+      selectedEdgeTargetNodeId = null;
+    }
   }
 
   updateActionState();
+}
+
+function clearTaxaSearch(pushToUndo) {
+  if (pushToUndo && workingTree && (taxaSearchTerm.length > 0 || taxaSearchMatches.length > 0 || selectedNodeId || selectedEdgeKey)) {
+    pushUndoState();
+  }
+  taxaSearchTerm = "";
+  if (taxaSearchInputEl) {
+    taxaSearchInputEl.value = "";
+  }
+  refreshTaxaSearchMatches();
+  if (workingTree) {
+    renderTree(workingTree);
+    updateStatus();
+  } else {
+    updateActionState();
+  }
 }
 
 function jumpToNextTaxaMatch() {
@@ -2060,6 +2192,7 @@ function jumpToNextTaxaMatch() {
     return;
   }
 
+  pushUndoState();
   taxaSearchIndex = (taxaSearchIndex + 1) % taxaSearchMatches.length;
   selectedNodeId = taxaSearchMatches[taxaSearchIndex];
   selectedEdgeKey = null;
@@ -2074,6 +2207,7 @@ function jumpToPrevTaxaMatch() {
     return;
   }
 
+  pushUndoState();
   taxaSearchIndex = (taxaSearchIndex - 1 + taxaSearchMatches.length) % taxaSearchMatches.length;
   selectedNodeId = taxaSearchMatches[taxaSearchIndex];
   selectedEdgeKey = null;
@@ -2222,10 +2356,12 @@ function currentSvgMarkup() {
     .node-circle { fill: #ffffff; stroke: #1f3340; stroke-width: 1.2; }
     .node-circle.is-highlighted { stroke: #ff8c00; stroke-width: 2.5; }
     .node-circle.is-polytomy { stroke: #bc1a1a; stroke-width: 2.2; }
-    .node-circle.is-search-hit { stroke: #177da6; stroke-width: 2.1; }
+    .node-circle.is-search-hit { stroke: #0b63ff; stroke-width: 2.1; }
+    .node-circle.is-search-focus { stroke: #ff8c00; stroke-width: 2.6; }
     .node-circle.is-collapsed { fill: #d8edf7; }
     .label { fill: #0f1e2a; font-size: 12px; dominant-baseline: middle; font-family: "IBM Plex Sans","Segoe UI",sans-serif; }
-    .label.search-focus-label { fill: #177da6; font-weight: 600; }
+    .label.search-hit-label { fill: #0b63ff; font-weight: 600; }
+    .label.search-focus-label { fill: #ff8c00; font-weight: 600; }
     .branch-length { fill: #2a576f; font-size: 10px; dominant-baseline: middle; font-family: "IBM Plex Sans","Segoe UI",sans-serif; }
     .scale-bar { stroke: #345263; stroke-width: 1.4; fill: none; }
     .scale-label { fill: #345263; font-size: 9px; dominant-baseline: hanging; font-family: "IBM Plex Sans","Segoe UI",sans-serif; }
@@ -2302,13 +2438,32 @@ function pushUndoState() {
     return;
   }
 
-  undoStack.push({
+  const snapshot = {
     tree: deepClone(workingTree),
     rootedExplicit,
     selectedNodeId,
     selectedEdgeKey,
     selectedEdgeTargetNodeId,
-  });
+    currentLayout,
+    highlightPolytomies,
+    showBranchLengths,
+    showBranchHoverDetails,
+    showScaleBar,
+    showNodeShapes,
+    showTipLabels,
+    showInternalLabels,
+    taxaSearchTerm,
+    taxaSearchIndex,
+    viewTransform: { ...viewTransform },
+    hasUserViewport,
+  };
+
+  const previous = undoStack.length > 0 ? undoStack[undoStack.length - 1] : null;
+  if (previous && snapshotsEquivalent(previous, snapshot)) {
+    return;
+  }
+
+  undoStack.push(snapshot);
 
   if (undoStack.length > 100) {
     undoStack.shift();
@@ -2325,9 +2480,85 @@ function restoreState(state) {
   selectedNodeId = state.selectedNodeId || null;
   selectedEdgeKey = state.selectedEdgeKey || null;
   selectedEdgeTargetNodeId = state.selectedEdgeTargetNodeId || null;
+  currentLayout = state.currentLayout || "phylogram";
+  highlightPolytomies = Boolean(state.highlightPolytomies);
+  showBranchLengths = Boolean(state.showBranchLengths);
+  showBranchHoverDetails = Boolean(state.showBranchHoverDetails);
+  showScaleBar = Boolean(state.showScaleBar);
+  showNodeShapes = state.showNodeShapes !== false;
+  showTipLabels = state.showTipLabels !== false;
+  showInternalLabels = Boolean(state.showInternalLabels);
+  taxaSearchTerm = String(state.taxaSearchTerm || "");
+  taxaSearchIndex = Number.isFinite(state.taxaSearchIndex) ? Number(state.taxaSearchIndex) : -1;
+  viewTransform = state.viewTransform ? { ...state.viewTransform } : { tx: 0, ty: 0, scale: 1 };
+  hasUserViewport = Boolean(state.hasUserViewport);
+
+  syncControlsFromState();
   refreshTaxaSearchMatches();
   renderTree(workingTree);
   updateStatus();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) {
+    return;
+  }
+  const previous = undoStack.pop();
+  restoreState(previous);
+}
+
+function snapshotsEquivalent(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function syncControlsFromState() {
+  if (layoutSelectEl) {
+    layoutSelectEl.value = currentLayout;
+  }
+  if (highlightPolySelectEl) {
+    highlightPolySelectEl.checked = highlightPolytomies;
+  }
+  if (showLengthsSelectEl) {
+    showLengthsSelectEl.checked = showBranchLengths;
+  }
+  if (showBranchHoverDetailsSelectEl) {
+    showBranchHoverDetailsSelectEl.checked = showBranchHoverDetails;
+  }
+  if (showScaleBarSelectEl) {
+    showScaleBarSelectEl.checked = showScaleBar;
+  }
+  if (showNodeShapesSelectEl) {
+    showNodeShapesSelectEl.checked = showNodeShapes;
+  }
+  if (showTipLabelsSelectEl) {
+    showTipLabelsSelectEl.checked = showTipLabels;
+  }
+  if (showInternalLabelsSelectEl) {
+    showInternalLabelsSelectEl.checked = showInternalLabels;
+  }
+  if (taxaSearchInputEl) {
+    taxaSearchInputEl.value = taxaSearchTerm;
+  }
+}
+
+function initializeGlobalUndoHotkey() {
+  window.addEventListener("keydown", (event) => {
+    const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key || "").toLowerCase() === "z";
+    if (!isUndo) {
+      return;
+    }
+
+    const target = event.target;
+    if (
+      target &&
+      ((target.tagName === "INPUT" && target.type === "text") || target.tagName === "TEXTAREA" || target.isContentEditable)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    performUndo();
+  });
 }
 
 function angleForLeaf(order, totalLeaves) {

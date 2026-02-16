@@ -361,8 +361,7 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         <span class="subsection-label">Zoom</span>
         <button id="zoomOutBtn" class="action-btn" type="button" title="Zoom out from the current center.">-</button>
         <button id="zoomInBtn" class="action-btn" type="button" title="Zoom in toward the current center.">+</button>
-        <button id="fitBtn" class="action-btn" type="button" title="Fit the full current tree rendering into the viewport.">Fit</button>
-        <button id="resetViewBtn" class="action-btn" type="button" title="Reset viewport transform to default zoom/pan.">Reset</button>
+        <button id="fitBtn" class="action-btn" type="button" title="Center and fit the tree in the viewport while keeping overlays visible.">Fit</button>
         <span class="subsection-label">Tree</span>
         <button id="toggleCollapseBtn" class="action-btn" type="button" title="Collapse/expand selected clade in the viewer. Affects image export; not written to saved Newick.">Collapse/Expand Selected</button>
         <span class="subsection-label">UI</span>
@@ -409,6 +408,7 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
           <span class="subsection-label">Taxa</span>
           <input id="taxaSearchInput" class="text-input" type="text" placeholder="Type name" title="Search node labels. Enter advances to next match." />
         </label>
+        <button id="clearSearchBtn" class="action-btn" type="button" title="Clear the current search and selection focus.">Clear</button>
         <button id="searchPrevBtn" class="action-btn" type="button" title="Jump to previous search match.">Prev</button>
         <button id="searchNextBtn" class="action-btn" type="button" title="Jump to next search match.">Next</button>
         <span id="searchCounter" class="search-counter" title="Current match / total matches">0/0</span>
