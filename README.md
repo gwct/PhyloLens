@@ -1,6 +1,6 @@
 # PhyloLens
 
-PhyloLens is a VS Code extension for viewing and editing phylogenetic trees across multiple common formats.
+PhyloLens is a VS Code extension focused on viewing phylogenetic trees across multiple common formats.
 
 ## Disclaimer
 
@@ -44,13 +44,16 @@ This project was developed with significant assistance from a large language mod
 
 ## Metadata Badges
 
-Top-row badges show:
+Title row badges show:
+- source format
+- edit sync status vs loaded source file
 
-- view sync status vs loaded file
+Bottom status strip badges show:
 - rooted/unrooted
 - bifurcating/non-bifurcating
 - ultrametric/not ultrametric
 - scale value
+- performance (parse/render timing)
 
 ## Install / Run (Dev)
 

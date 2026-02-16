@@ -1,9 +1,18 @@
 {
   "name": "phylolens",
   "displayName": "PhyloLens",
-  "description": "View phylogenetic trees from Newick files in VS Code.",
-  "version": "0.0.1",
-  "publisher": "local",
+  "description": "View phylogenetic trees in VS Code (Newick, NEXUS, PhyloXML, NeXML).",
+  "version": "0.1.0",
+  "publisher": "gwct",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gwct/PhyloLens.git"
+  },
+  "homepage": "https://github.com/gwct/PhyloLens#readme",
+  "bugs": {
+    "url": "https://github.com/gwct/PhyloLens/issues"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
