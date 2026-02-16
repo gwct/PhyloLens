@@ -1,0 +1,66 @@
+{
+  "name": "phylolens",
+  "displayName": "PhyloLens",
+  "description": "View phylogenetic trees from Newick files in VS Code.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:phylolens.openViewer"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "phylolens.openViewer",
+        "title": "Open Tree Viewer",
+        "category": "PhyloLens",
+        "icon": {
+          "light": "./etc/PhyloLens-icon-light.png",
+          "dark": "./etc/PhyloLens-icon-dark.png"
+        }
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "phylolens.openViewer",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(nwk|newick|tree|tre|treefile|nex|nexus|phyloxml|xml|nexml)$/",
+          "group": "navigation@20"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "phylolens.openViewer",
+          "when": "resourceScheme == file && resourceExtname =~ /\\.(nwk|newick|tree|tre|treefile|nex|nexus|phyloxml|xml|nexml)$/",
+          "group": "navigation@20"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "phylolens.openViewer",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "editorTextFocus && resourceExtname =~ /\\.(nwk|newick|tree|tre|treefile|nex|nexus|phyloxml|xml|nexml)$/"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./ && tsc -p tsconfig.web.json",
+    "watch": "tsc -w -p ./",
+    "watch:web": "tsc -w -p tsconfig.web.json",
+    "test": "npm run compile && node ./out/test/newick.test.js && node ./out/test/newick.extra.test.js && node ./out/test/formats.test.js && node ./out/test/examples.test.js && node ./out/test/tree-ops.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phyloxml xmlns="http://www.phyloxml.org">
+  <phylogeny rooted="true">
+    <name>Example phylogeny</name>
+    <description>Contains extra metadata tags ignored by the minimal parser.</description>
+    <clade>
+      <name>Mammalia</name>
+      <taxonomy>
+        <id provider="ncbi">40674</id>
+      </taxonomy>
+      <clade>
+        <name>Primates</name>
+        <branch_length>0.3</branch_length>
+        <confidence type="bootstrap">99</confidence>
+        <clade>
+          <name>Homo sapiens</name>
+          <branch_length>0.2</branch_length>
+        </clade>
+        <clade>
+          <name>Pan troglodytes</name>
+          <branch_length>0.2</branch_length>
+        </clade>
+      </clade>
+      <clade>
+        <name>Rodentia</name>
+        <branch_length>0.1</branch_length>
+        <clade>
+          <name>Mus musculus</name>
+          <branch_length>0.5</branch_length>
+        </clade>
+        <clade>
+          <name>Rattus norvegicus</name>
+          <branch_length>0.45</branch_length>
+        </clade>
+      </clade>
+    </clade>
+  </phylogeny>
+</phyloxml>

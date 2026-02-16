@@ -1,0 +1,11 @@
+#NEXUS
+
+BEGIN TREES;
+  TRANSLATE
+    1 Human,
+    2 Chimpanzee,
+    3 Mouse,
+    4 Rat
+  ;
+  TREE t1 = [&R]((1:0.2,2:0.2)Primates:0.3,(3:0.5,4:0.45)Rodents:0.1)Mammals;
+END;

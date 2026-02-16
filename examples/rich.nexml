@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nex:nexml xmlns:nex="http://www.nexml.org/2009" version="0.9">
+  <meta property="dc:title" content="Rich NeXML example"/>
+  <otus id="otus1">
+    <otu id="otu1" label="Homo sapiens"/>
+    <otu id="otu2" label="Pan troglodytes"/>
+    <otu id="otu3" label="Mus musculus"/>
+    <otu id="otu4" label="Rattus norvegicus"/>
+  </otus>
+  <trees id="trees1">
+    <tree id="tree1" otus="otus1">
+      <node id="n0" label="Mammalia" root="true"/>
+      <node id="n1" label="Primates"/>
+      <node id="n2" label="Rodentia"/>
+      <node id="n3" label="Homo sapiens"/>
+      <node id="n4" label="Pan troglodytes"/>
+      <node id="n5" label="Mus musculus"/>
+      <node id="n6" label="Rattus norvegicus"/>
+      <edge id="e1" source="n0" target="n1" length="0.3"/>
+      <edge id="e2" source="n0" target="n2" length="0.1"/>
+      <edge id="e3" source="n1" target="n3" length="0.2"/>
+      <edge id="e4" source="n1" target="n4" length="0.2"/>
+      <edge id="e5" source="n2" target="n5" length="0.5"/>
+      <edge id="e6" source="n2" target="n6" length="0.45"/>
+    </tree>
+  </trees>
+</nex:nexml>

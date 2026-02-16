@@ -1,0 +1,622 @@
+export interface TreeNodeOps {
+  id: string;
+  name: string;
+  length: number | null;
+  children: TreeNodeOps[];
+  start: number;
+  end: number;
+  _collapsedChildren?: TreeNodeOps[];
+}
+
+interface TreeGraph {
+  nodeById: Map<string, TreeNodeOps>;
+  adjacency: Map<string, Array<{ to: string; length: number | null }>>;
+  parentById: Map<string, string>;
+}
+
+export function cloneTree<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+export function structuralChildren(node: TreeNodeOps | null | undefined): TreeNodeOps[] {
+  if (!node) {
+    return [];
+  }
+
+  const visible = Array.isArray(node.children) ? node.children : [];
+  if (visible.length > 0) {
+    return visible;
+  }
+
+  return Array.isArray(node._collapsedChildren) ? node._collapsedChildren : [];
+}
+
+export function findNodeById(root: TreeNodeOps | null | undefined, targetId: string): TreeNodeOps | null {
+  if (!root || !targetId) {
+    return null;
+  }
+
+  const stack: TreeNodeOps[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node) {
+      continue;
+    }
+    if (node.id === targetId) {
+      return node;
+    }
+
+    const children = Array.isArray(node.children) ? node.children : [];
+    for (const child of children) {
+      stack.push(child);
+    }
+
+    const collapsedChildren = Array.isArray(node._collapsedChildren) ? node._collapsedChildren : [];
+    for (const child of collapsedChildren) {
+      stack.push(child);
+    }
+  }
+
+  return null;
+}
+
+export function expandAllCollapsed(node: TreeNodeOps | null | undefined): void {
+  if (!node) {
+    return;
+  }
+
+  if (!Array.isArray(node.children)) {
+    node.children = [];
+  }
+
+  if (Array.isArray(node._collapsedChildren) && node._collapsedChildren.length > 0) {
+    node.children = node._collapsedChildren;
+    delete node._collapsedChildren;
+  }
+
+  for (const child of node.children) {
+    expandAllCollapsed(child);
+  }
+}
+
+export function countTips(root: TreeNodeOps | null | undefined): number {
+  if (!root) {
+    return 0;
+  }
+
+  let count = 0;
+  const stack: TreeNodeOps[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node) {
+      continue;
+    }
+    const children = structuralChildren(node);
+    if (children.length === 0) {
+      count += 1;
+      continue;
+    }
+    for (const child of children) {
+      stack.push(child);
+    }
+  }
+  return count;
+}
+
+export function canToggleCollapseAtNode(root: TreeNodeOps | null | undefined, nodeId: string | null | undefined): boolean {
+  if (!root || !nodeId) {
+    return false;
+  }
+
+  const node = findNodeById(root, nodeId);
+  if (!node) {
+    return false;
+  }
+
+  const visibleChildren = Array.isArray(node.children) ? node.children.length : 0;
+  const collapsedChildren = Array.isArray(node._collapsedChildren) ? node._collapsedChildren.length : 0;
+  return visibleChildren > 0 || collapsedChildren > 0;
+}
+
+export function toggleCollapseAtNode(root: TreeNodeOps, nodeId: string): TreeNodeOps {
+  const tree = cloneTree(root);
+  const node = findNodeById(tree, nodeId);
+  if (!node) {
+    return tree;
+  }
+
+  const visibleChildren = Array.isArray(node.children) ? node.children : [];
+  const collapsedChildren = Array.isArray(node._collapsedChildren) ? node._collapsedChildren : [];
+
+  if (collapsedChildren.length > 0) {
+    node.children = collapsedChildren;
+    delete node._collapsedChildren;
+    return tree;
+  }
+
+  if (visibleChildren.length > 0) {
+    node._collapsedChildren = visibleChildren;
+    node.children = [];
+  }
+
+  return tree;
+}
+
+export function swapNodeChildren(root: TreeNodeOps, nodeId: string): TreeNodeOps {
+  const tree = cloneTree(root);
+  const node = findNodeById(tree, nodeId);
+  if (!node) {
+    return tree;
+  }
+
+  const visibleChildren = Array.isArray(node.children) ? node.children : [];
+  const collapsedChildren = Array.isArray(node._collapsedChildren) ? node._collapsedChildren : [];
+
+  if (visibleChildren.length >= 2) {
+    node.children = visibleChildren.slice().reverse();
+  } else if (collapsedChildren.length >= 2) {
+    node._collapsedChildren = collapsedChildren.slice().reverse();
+  }
+
+  return tree;
+}
+
+export function rerootTree(tree: TreeNodeOps, targetId: string): TreeNodeOps | null {
+  const graph = buildTreeGraph(tree);
+  if (!graph.nodeById.has(targetId)) {
+    return null;
+  }
+
+  let anchorId = graph.parentById.get(targetId) || null;
+  let edgeLength: number | null = null;
+
+  // If selected node is current root, use any incident edge as reroot anchor.
+  if (anchorId === null) {
+    const neighbors = graph.adjacency.get(targetId) || [];
+    if (neighbors.length === 0) {
+      return cloneTree(tree);
+    }
+    anchorId = neighbors[0].to;
+    edgeLength = neighbors[0].length;
+  } else {
+    edgeLength = findEdgeLength(graph.adjacency, targetId, anchorId);
+  }
+
+  const splitLength = Number.isFinite(edgeLength) ? Number(edgeLength) / 2 : null;
+
+  const left = buildRootedFrom(graph, targetId, anchorId, splitLength);
+  const right = buildRootedFrom(graph, anchorId, targetId, splitLength);
+
+  const syntheticRoot: TreeNodeOps = {
+    id: createSyntheticRootId(graph.nodeById),
+    name: "",
+    length: null,
+    children: [left, right],
+    start: tree.start,
+    end: tree.end,
+  };
+
+  return collapseUnaryNodes(syntheticRoot, true);
+}
+
+export function unrootTree(tree: TreeNodeOps): TreeNodeOps {
+  const root = cloneTree(tree);
+  if (!root || !Array.isArray(root.children) || root.children.length !== 2) {
+    return root;
+  }
+
+  const left = root.children[0];
+  const right = root.children[1];
+  const pivot = left.children.length >= right.children.length ? left : right;
+  const sibling = pivot === left ? right : left;
+
+  const newRoot: TreeNodeOps = {
+    id: root.id,
+    name: root.name || "",
+    length: null,
+    children: [],
+    start: root.start,
+    end: root.end,
+  };
+
+  if (pivot.children.length > 0) {
+    for (const child of pivot.children) {
+      newRoot.children.push(cloneTree(child));
+    }
+
+    const liftedSibling = cloneTree(sibling);
+    liftedSibling.length = mergeBranchLengths(pivot.length, sibling.length);
+    newRoot.children.push(liftedSibling);
+  } else {
+    const leftChild = cloneTree(left);
+    leftChild.length = null;
+
+    const rightChild = cloneTree(right);
+    rightChild.length = mergeBranchLengths(left.length, right.length);
+
+    newRoot.children.push(leftChild, rightChild);
+  }
+
+  return collapseUnaryNodes(newRoot, true);
+}
+
+export function midpointRootTree(tree: TreeNodeOps): TreeNodeOps | null {
+  const graph = buildTreeGraph(tree);
+  const tips = listTipIds(graph.nodeById);
+  if (tips.length < 2) {
+    return cloneTree(tree);
+  }
+
+  let bestA: string | null = null;
+  let bestB: string | null = null;
+  let bestDistance = -1;
+
+  for (let i = 0; i < tips.length; i += 1) {
+    const from = tips[i];
+    const distances = shortestDistancesFrom(graph, from);
+    for (let j = i + 1; j < tips.length; j += 1) {
+      const to = tips[j];
+      const d = distances.get(to);
+      if (!Number.isFinite(d)) {
+        continue;
+      }
+      if (Number(d) > bestDistance) {
+        bestDistance = Number(d);
+        bestA = from;
+        bestB = to;
+      }
+    }
+  }
+
+  if (!bestA || !bestB || bestDistance <= 0) {
+    return cloneTree(tree);
+  }
+
+  const path = findPath(graph, bestA, bestB);
+  if (!path || path.edges.length === 0) {
+    return cloneTree(tree);
+  }
+
+  const target = bestDistance / 2;
+  let walked = 0;
+  for (const edge of path.edges) {
+    const len = edge.length;
+    if (walked + len >= target) {
+      const along = target - walked;
+      const fraction = len > 0 ? clamp01(along / len) : 0.5;
+      return rerootOnEdgeAtFraction(graph, edge.from, edge.to, fraction, tree);
+    }
+    walked += len;
+  }
+
+  const last = path.edges[path.edges.length - 1];
+  return rerootOnEdgeAtFraction(graph, last.from, last.to, 0.5, tree);
+}
+
+export function leastSquaresRootTree(tree: TreeNodeOps): TreeNodeOps | null {
+  const graph = buildTreeGraph(tree);
+  const tips = listTipIds(graph.nodeById);
+  if (tips.length < 2) {
+    return cloneTree(tree);
+  }
+
+  const nodeIds = Array.from(graph.nodeById.keys());
+  const distCache = new Map<string, Map<string, number>>();
+  const getDistances = (nodeId: string): Map<string, number> => {
+    const cached = distCache.get(nodeId);
+    if (cached) {
+      return cached;
+    }
+    const next = shortestDistancesFrom(graph, nodeId);
+    distCache.set(nodeId, next);
+    return next;
+  };
+
+  let bestScore = Infinity;
+  let bestCandidate: { u: string; v: string; t: number } | null = null;
+  const samples = 20;
+
+  for (const u of nodeIds) {
+    const edges = graph.adjacency.get(u) || [];
+    for (const edge of edges) {
+      const v = edge.to;
+      if (u >= v) {
+        continue;
+      }
+
+      const L = numericLength(edge.length);
+      const distU = getDistances(u);
+      const distV = getDistances(v);
+
+      for (let i = 0; i <= samples; i += 1) {
+        const t = i / samples;
+        const dists: number[] = [];
+        for (const tip of tips) {
+          const du = distU.get(tip);
+          const dv = distV.get(tip);
+          if (!Number.isFinite(du) || !Number.isFinite(dv)) {
+            continue;
+          }
+          // In a tree, exactly one side gives the true path; min() is robust even
+          // when one endpoint distance includes crossing the candidate edge.
+          const rootToTip = Math.min(t * L + Number(du), (1 - t) * L + Number(dv));
+          dists.push(rootToTip);
+        }
+        if (dists.length < 2) {
+          continue;
+        }
+        const score = variance(dists);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidate = { u, v, t };
+        }
+      }
+    }
+  }
+
+  if (!bestCandidate) {
+    return cloneTree(tree);
+  }
+
+  return rerootOnEdgeAtFraction(graph, bestCandidate.u, bestCandidate.v, bestCandidate.t, tree);
+}
+
+function buildTreeGraph(tree: TreeNodeOps): TreeGraph {
+  const nodeById = new Map<string, TreeNodeOps>();
+  const adjacency = new Map<string, Array<{ to: string; length: number | null }>>();
+  const parentById = new Map<string, string>();
+
+  traverse(tree, null);
+
+  return {
+    nodeById,
+    adjacency,
+    parentById,
+  };
+
+  function traverse(node: TreeNodeOps, parentId: string | null): void {
+    nodeById.set(node.id, node);
+    if (!adjacency.has(node.id)) {
+      adjacency.set(node.id, []);
+    }
+
+    if (parentId !== null) {
+      parentById.set(node.id, parentId);
+    }
+
+    for (const child of node.children) {
+      const length = Number.isFinite(child.length) ? child.length : null;
+
+      if (!adjacency.has(child.id)) {
+        adjacency.set(child.id, []);
+      }
+
+      adjacency.get(node.id)?.push({ to: child.id, length });
+      adjacency.get(child.id)?.push({ to: node.id, length });
+
+      traverse(child, node.id);
+    }
+  }
+}
+
+function findEdgeLength(adjacency: TreeGraph["adjacency"], fromId: string, toId: string): number | null {
+  const edges = adjacency.get(fromId) || [];
+  const match = edges.find((edge) => edge.to === toId);
+  return match ? match.length : null;
+}
+
+function buildRootedFrom(graph: TreeGraph, currentId: string, parentId: string, incomingLength: number | null): TreeNodeOps {
+  const original = graph.nodeById.get(currentId);
+  if (!original) {
+    throw new Error(`Missing node '${currentId}' in graph`);
+  }
+
+  const next: TreeNodeOps = {
+    id: original.id,
+    name: original.name,
+    length: incomingLength,
+    children: [],
+    start: original.start,
+    end: original.end,
+  };
+
+  const neighbors = graph.adjacency.get(currentId) || [];
+  for (const edge of neighbors) {
+    if (edge.to === parentId) {
+      continue;
+    }
+
+    const child = buildRootedFrom(graph, edge.to, currentId, edge.length);
+    next.children.push(child);
+  }
+
+  return next;
+}
+
+function collapseUnaryNodes(node: TreeNodeOps, isRoot: boolean): TreeNodeOps {
+  const collapsedChildren = (node.children || []).map((child) => collapseUnaryNodes(child, false));
+  const next: TreeNodeOps = {
+    ...node,
+    children: collapsedChildren,
+  };
+
+  // Rerooting can leave unary artifacts where the old root path gets expanded.
+  // Collapse them while preserving total path length to avoid topology noise.
+  if (!isRoot && next.children.length === 1) {
+    const onlyChild = next.children[0];
+    onlyChild.length = mergeBranchLengths(next.length, onlyChild.length);
+    if (next.name && !onlyChild.name) {
+      onlyChild.name = next.name;
+    }
+    return onlyChild;
+  }
+
+  if (isRoot && next.children.length === 1) {
+    const onlyChild = next.children[0];
+    onlyChild.length = null;
+    if (next.name && !onlyChild.name) {
+      onlyChild.name = next.name;
+    }
+    return onlyChild;
+  }
+
+  return next;
+}
+
+function createSyntheticRootId(nodeById: Map<string, TreeNodeOps>): string {
+  if (!nodeById.has("root")) {
+    return "root";
+  }
+
+  let index = 1;
+  while (nodeById.has(`root_${index}`)) {
+    index += 1;
+  }
+
+  return `root_${index}`;
+}
+
+function mergeBranchLengths(a: number | null, b: number | null): number | null {
+  const hasA = Number.isFinite(a);
+  const hasB = Number.isFinite(b);
+
+  if (hasA && hasB) {
+    return Number(a) + Number(b);
+  }
+
+  if (hasA) {
+    return Number(a);
+  }
+
+  if (hasB) {
+    return Number(b);
+  }
+
+  return null;
+}
+
+function listTipIds(nodeById: Map<string, TreeNodeOps>): string[] {
+  const out: string[] = [];
+  for (const [id, node] of nodeById.entries()) {
+    if ((node.children || []).length === 0) {
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+function shortestDistancesFrom(graph: TreeGraph, startId: string): Map<string, number> {
+  const dist = new Map<string, number>();
+  const stack: Array<{ id: string; parent: string | null; d: number }> = [{ id: startId, parent: null, d: 0 }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    dist.set(current.id, current.d);
+    const edges = graph.adjacency.get(current.id) || [];
+    for (const edge of edges) {
+      if (edge.to === current.parent) {
+        continue;
+      }
+      stack.push({
+        id: edge.to,
+        parent: current.id,
+        d: current.d + numericLength(edge.length),
+      });
+    }
+  }
+  return dist;
+}
+
+function findPath(graph: TreeGraph, fromId: string, toId: string): { edges: Array<{ from: string; to: string; length: number }> } | null {
+  const parent = new Map<string, { prev: string | null; len: number }>();
+  const stack: Array<{ id: string; prev: string | null; len: number }> = [{ id: fromId, prev: null, len: 0 }];
+  parent.set(fromId, { prev: null, len: 0 });
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    if (current.id === toId) {
+      break;
+    }
+    const edges = graph.adjacency.get(current.id) || [];
+    for (const edge of edges) {
+      if (parent.has(edge.to)) {
+        continue;
+      }
+      parent.set(edge.to, { prev: current.id, len: numericLength(edge.length) });
+      stack.push({ id: edge.to, prev: current.id, len: numericLength(edge.length) });
+    }
+  }
+
+  if (!parent.has(toId)) {
+    return null;
+  }
+
+  const reversed: Array<{ from: string; to: string; length: number }> = [];
+  let cur = toId;
+  while (cur !== fromId) {
+    const info = parent.get(cur);
+    if (!info || !info.prev) {
+      return null;
+    }
+    reversed.push({ from: info.prev, to: cur, length: info.len });
+    cur = info.prev;
+  }
+  reversed.reverse();
+  return { edges: reversed };
+}
+
+function rerootOnEdgeAtFraction(graph: TreeGraph, u: string, v: string, t: number, tree: TreeNodeOps): TreeNodeOps {
+  const edgeLength = findEdgeLength(graph.adjacency, u, v);
+  const L = Number.isFinite(edgeLength) ? Math.max(0, Number(edgeLength)) : 1;
+  const leftLength = L * clamp01(t);
+  const rightLength = L - leftLength;
+
+  const left = buildRootedFrom(graph, u, v, leftLength);
+  const right = buildRootedFrom(graph, v, u, rightLength);
+
+  const syntheticRoot: TreeNodeOps = {
+    id: createSyntheticRootId(graph.nodeById),
+    name: "",
+    length: null,
+    children: [left, right],
+    start: tree.start,
+    end: tree.end,
+  };
+  return collapseUnaryNodes(syntheticRoot, true);
+}
+
+function variance(values: number[]): number {
+  if (values.length <= 1) {
+    return 0;
+  }
+  let sum = 0;
+  for (const v of values) {
+    sum += v;
+  }
+  const mean = sum / values.length;
+  let ss = 0;
+  for (const v of values) {
+    const d = v - mean;
+    ss += d * d;
+  }
+  return ss / values.length;
+}
+
+function numericLength(length: number | null): number {
+  if (Number.isFinite(length)) {
+    return Math.max(0, Number(length));
+  }
+  return 1;
+}
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0.5;
+  }
+  return Math.max(0, Math.min(1, v));
+}

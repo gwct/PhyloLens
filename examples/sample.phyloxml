@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phyloxml xmlns="http://www.phyloxml.org">
+  <phylogeny rooted="true">
+    <clade>
+      <name>Mammals</name>
+      <clade>
+        <name>Primates</name>
+        <branch_length>0.3</branch_length>
+        <clade>
+          <name>Human</name>
+          <branch_length>0.2</branch_length>
+        </clade>
+        <clade>
+          <name>Chimpanzee</name>
+          <branch_length>0.2</branch_length>
+        </clade>
+      </clade>
+      <clade>
+        <name>Rodents</name>
+        <branch_length>0.1</branch_length>
+        <clade>
+          <name>Mouse</name>
+          <branch_length>0.5</branch_length>
+        </clade>
+        <clade>
+          <name>Rat</name>
+          <branch_length>0.45</branch_length>
+        </clade>
+      </clade>
+    </clade>
+  </phylogeny>
+</phyloxml>

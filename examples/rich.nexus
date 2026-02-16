@@ -1,0 +1,12 @@
+#NEXUS
+
+[Example with comments, quoted labels, and translate map]
+BEGIN TREES;
+  TRANSLATE
+    1 'Homo sapiens',
+    2 'Pan troglodytes',
+    3 'Mus musculus',
+    4 Rattus_norvegicus
+  ;
+  TREE rich = [&R]((1:0.2,2:0.2)'Primates clade':0.3,(3:0.5,4:0.45)[&note=rodents]:0.1)Mammalia;
+END;
