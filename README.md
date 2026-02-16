@@ -12,9 +12,15 @@ This project was developed with significant assistance from a large language mod
 - Adds `Open Tree Viewer` to Explorer right-click for supported tree files.
 - Opens a dedicated tree viewer panel beside your text editor.
 - Adds a keyboard shortcut: `Ctrl+Alt+P` (`Cmd+Alt+P` on macOS).
-- Keeps tree + source linked:
-- Click node/branch in viewer -> reveal source in editor.
-- Move cursor in editor -> highlight corresponding node in viewer.
+- Tree/source sync: click node/branch in viewer -> reveal source in editor.
+- Tree/source sync: move cursor in editor -> highlight corresponding node in viewer.
+
+## Screenshots
+
+![Main viewer](docs/img/viewer-main.png)
+![Radial layout](docs/img/viewer-radial.png)
+![Edit actions](docs/img/viewer-edit-actions.png)
+![Search and export](docs/img/viewer-search-export.png)
 
 ## Supported File Types
 
@@ -68,7 +74,7 @@ Press `F5` in VS Code to launch the Extension Development Host.
 
 All example trees now live under `examples/`.
 
-- Small/base examples
+Small/base examples:
 - `examples/comments.nwk`
 - `examples/sample.nexml`
 - `examples/sample.nexus`
@@ -76,11 +82,13 @@ All example trees now live under `examples/`.
 - `examples/sample.phyloxml`
 - `examples/sample.rooted.nwk`
 - `examples/ultrametric.nwk`
-- Rich metadata examples
+
+Rich metadata examples:
 - `examples/rich.nexml`
 - `examples/rich.nexus`
 - `examples/rich.phyloxml`
-- Large examples
+
+Large examples:
 - `examples/large.nexml`
 - `examples/large.nexus`
 - `examples/large.nwk`
