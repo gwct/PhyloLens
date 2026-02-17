@@ -26,6 +26,31 @@ const clearSearchBtnEl = document.getElementById("clearSearchBtn");
 const searchPrevBtnEl = document.getElementById("searchPrevBtn");
 const searchNextBtnEl = document.getElementById("searchNextBtn");
 const searchCounterEl = document.getElementById("searchCounter");
+const compactMenuBarEl = document.getElementById("compactMenuBar");
+const compactTaxaSearchInputEl = document.getElementById("compactTaxaSearchInput");
+const compactClearSearchBtnEl = document.getElementById("compactClearSearchBtn");
+const compactSearchPrevBtnEl = document.getElementById("compactSearchPrevBtn");
+const compactSearchNextBtnEl = document.getElementById("compactSearchNextBtn");
+const compactSearchCounterEl = document.getElementById("compactSearchCounter");
+const compactMenuRoots = Array.from(document.querySelectorAll(".menu-root"));
+const menuLayoutOptionEls = Array.from(document.querySelectorAll(".menu-layout-option"));
+const menuCheckOptionEls = Array.from(document.querySelectorAll(".menu-check-option"));
+const menuActionBridge = new Map([
+  ["menuSaveAsBtn", "saveAsBtn"],
+  ["menuExportSvgBtn", "exportSvgBtn"],
+  ["menuExportPngBtn", "exportPngBtn"],
+  ["menuSwapNodeBtn", "swapNodeBtn"],
+  ["menuRerootBtn", "rerootBtn"],
+  ["menuMidpointRootBtn", "midpointRootBtn"],
+  ["menuLeastSquaresRootBtn", "leastSquaresRootBtn"],
+  ["menuUnrootBtn", "unrootBtn"],
+  ["menuUndoBtn", "undoBtn"],
+  ["menuRevertBtn", "revertBtn"],
+  ["menuZoomOutBtn", "zoomOutBtn"],
+  ["menuZoomInBtn", "zoomInBtn"],
+  ["menuFitBtn", "fitBtn"],
+  ["menuToggleCollapseBtn", "toggleCollapseBtn"],
+]);
 const toggleCollapseBtnEl = document.getElementById("toggleCollapseBtn");
 const swapNodeBtnEl = document.getElementById("swapNodeBtn");
 const rerootBtnEl = document.getElementById("rerootBtn");
@@ -45,6 +70,7 @@ const selectionInfoEl = document.getElementById("selectionInfo");
 const viewStateEl = document.getElementById("viewState");
 const dirtyIndicatorEl = document.getElementById("dirtyIndicator");
 const sourceFormatStateEl = document.getElementById("sourceFormatState");
+const uiModeToggleBtnEl = document.getElementById("uiModeToggleBtn");
 const fileStateEl = document.getElementById("fileState");
 const rootStateEl = document.getElementById("rootState");
 const branchStateEl = document.getElementById("branchState");
@@ -87,6 +113,8 @@ let draggingToolbarSection = null;
 let lastSavedAsPath = null;
 let lastSavedAsTreeSnapshot = null;
 let sourceFormat = "unknown";
+let uiMode = "toolbar";
+let uiModePinned = false;
 let lastParseMs = null;
 let lastRenderMs = null;
 let lastTreeNodeCount = 0;
@@ -215,6 +243,7 @@ if (taxaSearchInputEl) {
       pushUndoState();
     }
     taxaSearchTerm = nextTerm;
+    syncSearchInputs();
     refreshTaxaSearchMatches();
     if (workingTree) {
       renderTree(workingTree);
@@ -223,6 +252,29 @@ if (taxaSearchInputEl) {
   });
 
   taxaSearchInputEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      jumpToNextTaxaMatch();
+    }
+  });
+}
+
+if (compactTaxaSearchInputEl) {
+  compactTaxaSearchInputEl.addEventListener("input", () => {
+    const nextTerm = String(compactTaxaSearchInputEl.value || "").trim();
+    if (workingTree && nextTerm !== taxaSearchTerm) {
+      pushUndoState();
+    }
+    taxaSearchTerm = nextTerm;
+    syncSearchInputs();
+    refreshTaxaSearchMatches();
+    if (workingTree) {
+      renderTree(workingTree);
+      updateStatus();
+    }
+  });
+
+  compactTaxaSearchInputEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       jumpToNextTaxaMatch();
@@ -245,6 +297,24 @@ if (searchPrevBtnEl) {
 if (clearSearchBtnEl) {
   clearSearchBtnEl.addEventListener("click", () => {
     clearTaxaSearch(true);
+  });
+}
+
+if (compactClearSearchBtnEl) {
+  compactClearSearchBtnEl.addEventListener("click", () => {
+    clearTaxaSearch(true);
+  });
+}
+
+if (compactSearchNextBtnEl) {
+  compactSearchNextBtnEl.addEventListener("click", () => {
+    jumpToNextTaxaMatch();
+  });
+}
+
+if (compactSearchPrevBtnEl) {
+  compactSearchPrevBtnEl.addEventListener("click", () => {
+    jumpToPrevTaxaMatch();
   });
 }
 
@@ -489,6 +559,8 @@ if (exportPngBtnEl) {
 }
 
 initializeToolbarDragDrop();
+initializeUiMode();
+initializeCompactMenus();
 initializeGlobalUndoHotkey();
 
 window.addEventListener("message", (event) => {
@@ -602,7 +674,176 @@ function initializeToolbarDragDrop() {
   updateToolbarRowDecorations();
 }
 
+function initializeUiMode() {
+  const state = vscode.getState() || {};
+  if (state.uiMode === "menu" || state.uiMode === "toolbar") {
+    uiMode = state.uiMode;
+    uiModePinned = true;
+  } else {
+    uiMode = window.innerHeight < 860 ? "menu" : "toolbar";
+    uiModePinned = false;
+  }
+  applyUiMode(false);
+
+  if (uiModeToggleBtnEl) {
+    uiModeToggleBtnEl.addEventListener("click", () => {
+      uiMode = uiMode === "menu" ? "toolbar" : "menu";
+      uiModePinned = true;
+      applyUiMode(true);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    if (uiModePinned) {
+      return;
+    }
+    const next = window.innerHeight < 860 ? "menu" : "toolbar";
+    if (next === uiMode) {
+      return;
+    }
+    uiMode = next;
+    applyUiMode(false);
+  });
+}
+
+function applyUiMode(persist) {
+  document.body.classList.toggle("menu-mode", uiMode === "menu");
+  document.body.classList.toggle("toolbar-mode", uiMode !== "menu");
+
+  if (uiModeToggleBtnEl) {
+    uiModeToggleBtnEl.textContent = uiMode === "menu" ? "Toolbar View" : "Menu View";
+  }
+
+  const handles = Array.from(document.querySelectorAll(".section[data-section-id] > .section-label"));
+  for (const handle of handles) {
+    if (!(handle instanceof HTMLElement)) {
+      continue;
+    }
+    if (uiMode === "menu") {
+      handle.setAttribute("draggable", "false");
+    } else {
+      handle.setAttribute("draggable", "true");
+    }
+  }
+
+  refreshRowSemanticClasses();
+
+  if (uiMode !== "menu") {
+    closeAllMenuSections();
+  }
+
+  if (persist) {
+    persistUiModeState();
+  } else {
+    // Keep current default/pinned state persisted as soon as mode is initialized.
+    persistUiModeState();
+  }
+}
+
+function closeAllMenuSections() {
+  for (const section of document.querySelectorAll(".menu-root.menu-open")) {
+    section.classList.remove("menu-open");
+  }
+}
+
+function persistUiModeState() {
+  const prior = vscode.getState() || {};
+  vscode.setState({
+    ...prior,
+    uiMode,
+    uiModePinned,
+  });
+}
+
+function initializeCompactMenus() {
+  for (const root of compactMenuRoots) {
+    const trigger = root.querySelector(".menu-trigger");
+    if (trigger instanceof HTMLElement) {
+      trigger.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (uiMode !== "menu") {
+          return;
+        }
+        const willOpen = !root.classList.contains("menu-open");
+        closeAllMenuSections();
+        if (willOpen) {
+          root.classList.add("menu-open");
+        }
+      });
+    }
+  }
+
+  for (const [menuId, sourceId] of menuActionBridge.entries()) {
+    const menuBtn = document.getElementById(menuId);
+    const sourceBtn = document.getElementById(sourceId);
+    if (!(menuBtn instanceof HTMLElement) || !(sourceBtn instanceof HTMLElement)) {
+      continue;
+    }
+    menuBtn.addEventListener("click", () => {
+      if (sourceBtn instanceof HTMLButtonElement && sourceBtn.disabled) {
+        return;
+      }
+      sourceBtn.click();
+      closeAllMenuSections();
+    });
+  }
+
+  for (const optionEl of menuLayoutOptionEls) {
+    if (!(optionEl instanceof HTMLElement)) {
+      continue;
+    }
+    optionEl.addEventListener("click", () => {
+      const layoutId = optionEl.getAttribute("data-layout");
+      if (!layoutId || !VALID_LAYOUTS.has(layoutId)) {
+        return;
+      }
+      if (layoutSelectEl instanceof HTMLSelectElement) {
+        layoutSelectEl.value = layoutId;
+        layoutSelectEl.dispatchEvent(new Event("change"));
+      }
+      closeAllMenuSections();
+    });
+  }
+
+  for (const optionEl of menuCheckOptionEls) {
+    if (!(optionEl instanceof HTMLElement)) {
+      continue;
+    }
+    optionEl.addEventListener("click", () => {
+      const optionId = optionEl.getAttribute("data-option-id");
+      if (!optionId) {
+        return;
+      }
+      const input = document.getElementById(optionId);
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event("change"));
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (uiMode !== "menu") {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      closeAllMenuSections();
+      return;
+    }
+    if (!target.closest(".compact-menu-bar")) {
+      closeAllMenuSections();
+    }
+  });
+}
+
 function onToolbarSectionDragStart(event) {
+  if (uiMode === "menu") {
+    event.preventDefault();
+    return;
+  }
   const handle = event.currentTarget;
   if (!handle || !(handle instanceof HTMLElement)) {
     return;
@@ -630,6 +871,9 @@ function onToolbarSectionDragEnd() {
 }
 
 function onToolbarRowDragOver(event) {
+  if (uiMode === "menu") {
+    return;
+  }
   if (!draggingToolbarSection) {
     return;
   }
@@ -641,6 +885,9 @@ function onToolbarRowDragOver(event) {
 }
 
 function onToolbarRowDrop(event) {
+  if (uiMode === "menu") {
+    return;
+  }
   if (!draggingToolbarSection) {
     return;
   }
@@ -668,6 +915,9 @@ function onToolbarRowDragLeave(event) {
 }
 
 function onToolbarSectionDragOver(event) {
+  if (uiMode === "menu") {
+    return;
+  }
   if (!draggingToolbarSection) {
     return;
   }
@@ -684,6 +934,9 @@ function onToolbarSectionDragOver(event) {
 }
 
 function onToolbarSectionDrop(event) {
+  if (uiMode === "menu") {
+    return;
+  }
   if (!draggingToolbarSection) {
     return;
   }
@@ -885,6 +1138,14 @@ function updateToolbarRowDecorations() {
       }
       seenSection = true;
     }
+  }
+  refreshRowSemanticClasses();
+}
+
+function refreshRowSemanticClasses() {
+  const rows = getMovableHeaderRows();
+  for (const row of rows) {
+    row.classList.toggle("search-row", Boolean(row.querySelector(".section-search")));
   }
 }
 
@@ -2036,8 +2297,17 @@ function updateActionState() {
   if (searchNextBtnEl) {
     searchNextBtnEl.disabled = taxaSearchMatches.length === 0;
   }
+  if (compactSearchPrevBtnEl) {
+    compactSearchPrevBtnEl.disabled = taxaSearchMatches.length === 0;
+  }
+  if (compactSearchNextBtnEl) {
+    compactSearchNextBtnEl.disabled = taxaSearchMatches.length === 0;
+  }
   if (clearSearchBtnEl) {
     clearSearchBtnEl.disabled = taxaSearchTerm.length === 0 && taxaSearchMatches.length === 0;
+  }
+  if (compactClearSearchBtnEl) {
+    compactClearSearchBtnEl.disabled = taxaSearchTerm.length === 0 && taxaSearchMatches.length === 0;
   }
   if (toggleCollapseBtnEl) {
     toggleCollapseBtnEl.disabled = !canToggleSelectedNodeCollapse();
@@ -2045,8 +2315,43 @@ function updateActionState() {
   if (swapNodeBtnEl) {
     swapNodeBtnEl.disabled = !canSwapSelectedNode();
   }
+  syncCompactMenuState();
   updateSearchCounter();
   updateSelectionInfo();
+}
+
+function syncCompactMenuState() {
+  for (const [menuId, sourceId] of menuActionBridge.entries()) {
+    const menuBtn = document.getElementById(menuId);
+    const sourceBtn = document.getElementById(sourceId);
+    if (!(menuBtn instanceof HTMLButtonElement) || !(sourceBtn instanceof HTMLButtonElement)) {
+      continue;
+    }
+    menuBtn.disabled = sourceBtn.disabled;
+  }
+
+  for (const optionEl of menuCheckOptionEls) {
+    if (!(optionEl instanceof HTMLElement)) {
+      continue;
+    }
+    const optionId = optionEl.getAttribute("data-option-id");
+    if (!optionId) {
+      continue;
+    }
+    const input = document.getElementById(optionId);
+    const checked = input instanceof HTMLInputElement ? Boolean(input.checked) : false;
+    optionEl.classList.toggle("is-checked", checked);
+    optionEl.setAttribute("aria-checked", checked ? "true" : "false");
+  }
+
+  for (const optionEl of menuLayoutOptionEls) {
+    if (!(optionEl instanceof HTMLElement)) {
+      continue;
+    }
+    const layoutId = optionEl.getAttribute("data-layout");
+    const active = layoutId === currentLayout;
+    optionEl.classList.toggle("is-active", active);
+  }
 }
 
 function updateStatus() {
@@ -2175,9 +2480,7 @@ function clearTaxaSearch(pushToUndo) {
     pushUndoState();
   }
   taxaSearchTerm = "";
-  if (taxaSearchInputEl) {
-    taxaSearchInputEl.value = "";
-  }
+  syncSearchInputs();
   refreshTaxaSearchMatches();
   if (workingTree) {
     renderTree(workingTree);
@@ -2218,13 +2521,9 @@ function jumpToPrevTaxaMatch() {
 }
 
 function updateSearchCounter() {
-  if (!searchCounterEl) {
-    return;
-  }
-
   const total = taxaSearchMatches.length;
   if (total === 0) {
-    searchCounterEl.textContent = "0/0";
+    setSearchCounterText("0/0");
     return;
   }
 
@@ -2238,7 +2537,25 @@ function updateSearchCounter() {
   if (taxaSearchIndex < 0 || taxaSearchIndex >= total) {
     taxaSearchIndex = 0;
   }
-  searchCounterEl.textContent = `${taxaSearchIndex + 1}/${total}`;
+  setSearchCounterText(`${taxaSearchIndex + 1}/${total}`);
+}
+
+function setSearchCounterText(text) {
+  if (searchCounterEl) {
+    searchCounterEl.textContent = text;
+  }
+  if (compactSearchCounterEl) {
+    compactSearchCounterEl.textContent = text;
+  }
+}
+
+function syncSearchInputs() {
+  if (taxaSearchInputEl && taxaSearchInputEl.value !== taxaSearchTerm) {
+    taxaSearchInputEl.value = taxaSearchTerm;
+  }
+  if (compactTaxaSearchInputEl && compactTaxaSearchInputEl.value !== taxaSearchTerm) {
+    compactTaxaSearchInputEl.value = taxaSearchTerm;
+  }
 }
 
 function updateSelectionInfo() {
@@ -2536,9 +2853,7 @@ function syncControlsFromState() {
   if (showInternalLabelsSelectEl) {
     showInternalLabelsSelectEl.checked = showInternalLabels;
   }
-  if (taxaSearchInputEl) {
-    taxaSearchInputEl.value = taxaSearchTerm;
-  }
+  syncSearchInputs();
 }
 
 function initializeGlobalUndoHotkey() {

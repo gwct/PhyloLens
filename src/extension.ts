@@ -314,6 +314,7 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         </div>
         <div class="title-spacer"></div>
         <div class="title-right">
+          <button id="uiModeToggleBtn" class="action-btn" type="button" title="Toggle between full toolbar and compact menu view.">Menu View</button>
           <div class="meta-badges">
             <span id="dirtyIndicator" class="dirty-indicator" title="Unsaved tree edits are present in the viewer." aria-label="Unsaved edits indicator"></span>
             <span id="fileState" class="badge" title="Compares current viewer tree state to the file originally opened in this viewer. Save As is tracked separately.">Edit sync: unknown</span>
@@ -414,6 +415,77 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         <span id="searchCounter" class="search-counter" title="Current match / total matches">0/0</span>
       </div>
     </div>
+    </div>
+    <div id="compactMenuBar" class="compact-menu-bar" aria-label="Compact menu bar">
+      <div class="compact-menus">
+        <div class="menu-root" data-menu-id="file">
+          <button class="menu-trigger" type="button">File</button>
+          <div class="menu-dropdown">
+            <div class="menu-group-label">Newick</div>
+            <button id="menuSaveAsBtn" class="menu-item" type="button">Save As...</button>
+            <div class="menu-sep"></div>
+            <div class="menu-group-label">Image</div>
+            <button id="menuExportSvgBtn" class="menu-item" type="button">Export SVG</button>
+            <button id="menuExportPngBtn" class="menu-item" type="button">Export PNG</button>
+          </div>
+        </div>
+        <div class="menu-root" data-menu-id="edit">
+          <button class="menu-trigger" type="button">Edit</button>
+          <div class="menu-dropdown">
+            <button id="menuSwapNodeBtn" class="menu-item" type="button">Swap Selected Node</button>
+            <button id="menuRerootBtn" class="menu-item" type="button">Root On Selected Branch</button>
+            <button id="menuMidpointRootBtn" class="menu-item" type="button">Midpoint Root</button>
+            <button id="menuLeastSquaresRootBtn" class="menu-item" type="button">Least-Squares Root</button>
+            <button id="menuUnrootBtn" class="menu-item" type="button">Unroot</button>
+            <div class="menu-sep"></div>
+            <button id="menuUndoBtn" class="menu-item" type="button">Undo</button>
+            <button id="menuRevertBtn" class="menu-item" type="button">Revert</button>
+          </div>
+        </div>
+        <div class="menu-root" data-menu-id="view">
+          <button class="menu-trigger" type="button">View</button>
+          <div class="menu-dropdown">
+            <div class="menu-group-label">Layout</div>
+            <div class="menu-item has-submenu">Layout ▸
+              <div class="menu-submenu">
+                <button class="menu-item menu-layout-option" type="button" data-layout="phylogram">Rectangular (lengths)</button>
+                <button class="menu-item menu-layout-option" type="button" data-layout="cladogram">Rectangular (equal)</button>
+                <button class="menu-item menu-layout-option" type="button" data-layout="radial_lengths_curved">Radial (lengths, curved)</button>
+                <button class="menu-item menu-layout-option" type="button" data-layout="radial_lengths_straight">Radial (lengths, straight)</button>
+                <button class="menu-item menu-layout-option" type="button" data-layout="radial_equal_curved">Radial (equal, curved)</button>
+                <button class="menu-item menu-layout-option" type="button" data-layout="radial_equal_straight">Radial (equal, straight)</button>
+              </div>
+            </div>
+            <div class="menu-sep"></div>
+            <div class="menu-group-label">Zoom</div>
+            <button id="menuZoomOutBtn" class="menu-item" type="button">Zoom Out</button>
+            <button id="menuZoomInBtn" class="menu-item" type="button">Zoom In</button>
+            <button id="menuFitBtn" class="menu-item" type="button">Fit</button>
+            <div class="menu-sep"></div>
+            <div class="menu-group-label">Tree</div>
+            <button id="menuToggleCollapseBtn" class="menu-item" type="button">Collapse/Expand Selected</button>
+          </div>
+        </div>
+        <div class="menu-root" data-menu-id="options">
+          <button class="menu-trigger" type="button">Options</button>
+          <div class="menu-dropdown">
+            <button class="menu-item menu-check-option" type="button" data-option-id="highlightPolySelect">Show polytomies</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showLengthsSelect">Show branch lengths</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showBranchHoverDetailsSelect">Hover details</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showScaleBarSelect">Show scale bar</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showNodeShapesSelect">Show node shapes</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showTipLabelsSelect">Show tip labels</button>
+            <button class="menu-item menu-check-option" type="button" data-option-id="showInternalLabelsSelect">Show node labels</button>
+          </div>
+        </div>
+      </div>
+      <div class="compact-search">
+        <input id="compactTaxaSearchInput" class="text-input" type="text" placeholder="Search taxa" title="Search node labels. Enter advances to next match." />
+        <button id="compactClearSearchBtn" class="action-btn" type="button" title="Clear search and focused selection.">Clear</button>
+        <button id="compactSearchPrevBtn" class="action-btn" type="button" title="Previous match.">Prev</button>
+        <button id="compactSearchNextBtn" class="action-btn" type="button" title="Next match.">Next</button>
+        <span id="compactSearchCounter" class="search-counter" title="Current match / total matches">0/0</span>
+      </div>
     </div>
   </div>
   <div id="canvasWrap" class="canvas-wrap"></div>
