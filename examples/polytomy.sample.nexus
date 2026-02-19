@@ -1,0 +1,5 @@
+#NEXUS
+
+BEGIN TREES;
+  TREE poly = [&R]((Human:0.2,Chimpanzee:0.2,Bonobo:0.2)Primates:0.3,(Mouse:0.5,Rat:0.45)Rodents:0.1)Mammals;
+END;

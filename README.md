@@ -17,10 +17,35 @@ This project was developed with significant assistance from a large language mod
 
 ## Screenshots
 
+### Editor Discoverability
+Where to find the `Open Tree Viewer` icon in the editor title area.
+
+![Editor discoverability](docs/img/viewer-editor-discoverability.gif)
+
+### Main Viewer
+Main viewer layout with title row, controls, and status badges.
+
 ![Main viewer](docs/img/viewer-main.png)
+
+### Radial Layout
+Radial layout variants and branch-length display.
+
 ![Radial layout](docs/img/viewer-radial.png)
+
+### Edit Actions
+Tree edit actions (rooting, unrooting, swap, collapse).
+
 ![Edit actions](docs/img/viewer-edit-actions.png)
+
+### Search And Export
+Search workflow (`Prev/Next/Clear`) and image export controls.
+
 ![Search and export](docs/img/viewer-search-export.png)
+
+### Compact Menu Mode
+Compact menu mode used on smaller screens.
+
+![Compact menu mode](docs/img/viewer-menu-mode.png)
 
 ## Supported File Types
 
@@ -44,10 +69,11 @@ This project was developed with significant assistance from a large language mod
 - Display toggles include branch lengths, scale bar, tip/internal labels, and node shapes.
 - Selection-aware actions: root on selected branch, unroot, swap selected node child order, collapse/expand selected clade.
 - Global undo (`Ctrl+Z` / `Cmd+Z`) for tree edits and view changes, plus revert-to-original.
-- Save edited tree with `Save As...` in Newick/NEXUS/PhyloXML/NeXML.
+- Save edited tree via `Save As...` format dropdown in Newick/NEXUS/PhyloXML/NeXML.
 - Export rendered tree to `SVG` or `PNG`.
 - Search taxon/node labels with `Prev/Next`, `Clear`, and a match counter.
 - Branch hover details (length and descendant tip count).
+- Rooted layouts render a short ancestral stem at the root.
 
 ## Metadata Badges
 
@@ -86,7 +112,16 @@ Small/base examples:
 - `examples/sample.nwk`
 - `examples/sample.phyloxml`
 - `examples/sample.rooted.nwk`
+- `examples/polytomy.rooted.nwk`
+- `examples/polytomy.unrooted.nwk`
+- `examples/polytomy.unrooted.internal.nwk`
+- `examples/polytomy.sample.nexus`
 - `examples/ultrametric.nwk`
+
+Polytomy note:
+- In unrooted mode, the required 3-way display root is not treated as a polytomy.
+- `examples/polytomy.unrooted.nwk` shows a top-level unrooted polytomy.
+- `examples/polytomy.unrooted.internal.nwk` shows a clearly internal unrooted polytomy.
 
 Rich metadata examples:
 - `examples/rich.nexml`

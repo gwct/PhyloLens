@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-19
+
+### Added
+- Compact menu mode for smaller screens, with section dropdowns and persistent search controls.
+- Toolbar/menu mode toggle in the title row.
+- Save-format conversion flow in the File section:
+  - Toolbar mode uses a single `Save As...` format dropdown.
+  - Menu mode exposes `Save As` format submenu.
+- New example fixtures for polytomy testing:
+  - `examples/polytomy.rooted.nwk`
+  - `examples/polytomy.unrooted.nwk`
+  - `examples/polytomy.unrooted.internal.nwk`
+  - `examples/polytomy.sample.nexus`
+- Rooted-tree ancestral stem rendering (small branch at the root) across layouts.
+- New discoverability screenshot slot in README (editor icon location).
+
+### Changed
+- Branch selection highlight now uses the same orange color as node selection.
+- Search highlighting made more prominent with a distinct focused-match state.
+- Save/help copy updated to emphasize viewer-first workflow.
+- Status/help text clarified around rooted/unrooted and polytomy interpretation.
+
+### Fixed
+- Unrooted bifurcation/polytomy logic:
+  - The expected unrooted 3-way display root is no longer treated as a polytomy by itself.
+  - True unrooted top-level/internal polytomies still highlight correctly.
+- Polytomy highlighting visibility at unrooted display root edge cases.
+- Rectangular rooted ancestral-stem rendering bug.
+
 ## [0.1.0] - 2026-02-16
 
 ### Added

@@ -632,8 +632,15 @@ svg {
   pointer-events: none;
 }
 
+.root-stem {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.4;
+  pointer-events: none;
+}
+
 .edge.is-selected {
-  stroke: var(--accent);
+  stroke: var(--highlight);
   stroke-width: 2.4;
 }
 

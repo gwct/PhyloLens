@@ -5,6 +5,7 @@ import {
   detectFormatFromPath,
   getAllSupportedExtensions,
   getSaveDialogFilters,
+  getSaveDialogFiltersForFormat,
   inferFormatForSave,
   parseTreeText,
   serializeTreeByFormat,
@@ -30,6 +31,7 @@ interface WebviewMessage {
   savedPath?: string;
   level?: "info" | "warning" | "error";
   text?: string;
+  format?: TreeFormatId;
 }
 
 const viewersByDocument = new Map<string, ViewerState>();
@@ -128,7 +130,7 @@ function openOrRevealViewer(context: vscode.ExtensionContext, document: vscode.T
     if (msg.type === "saveTreeAs") {
       const source = viewersByDocument.get(key);
       const sourceFormatId = source ? source.sourceFormat : "newick";
-      const savedPath = await saveTreeAs(msg.tree, sourceFormatId);
+      const savedPath = await saveTreeAs(msg.tree, sourceFormatId, msg.format);
       if (savedPath) {
         panel.webview.postMessage({
           type: "saveTreeAsResult",
@@ -185,15 +187,20 @@ function revealRangeInEditor(document: vscode.TextDocument, key: string, msg: We
   editor.revealRange(selection, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 }
 
-async function saveTreeAs(tree: TreeNode | undefined, sourceFormat: TreeFormatId): Promise<string | null> {
+async function saveTreeAs(
+  tree: TreeNode | undefined,
+  sourceFormat: TreeFormatId,
+  requestedFormat: TreeFormatId | undefined
+): Promise<string | null> {
   if (!tree) {
     vscode.window.showWarningMessage("No tree data available to save.");
     return null;
   }
 
+  const effectiveFormat = requestedFormat || sourceFormat;
   const target = await vscode.window.showSaveDialog({
     title: "Save Edited Tree As",
-    filters: getSaveDialogFilters(),
+    filters: requestedFormat ? getSaveDialogFiltersForFormat(requestedFormat) : getSaveDialogFilters(),
     saveLabel: "Save Tree",
   });
 
@@ -201,7 +208,7 @@ async function saveTreeAs(tree: TreeNode | undefined, sourceFormat: TreeFormatId
     return null;
   }
 
-  const format = inferFormatForSave(target.fsPath, sourceFormat);
+  const format = requestedFormat || inferFormatForSave(target.fsPath, effectiveFormat);
   const text = serializeTreeByFormat(tree, format);
   await vscode.workspace.fs.writeFile(target, Buffer.from(text, "utf8"));
   vscode.window.showInformationMessage(`Saved tree to ${target.fsPath}`);
@@ -325,9 +332,17 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
     <div class="controls-panel">
     <div class="header-row header-row-movable" data-row-id="row-1">
       <div class="section section-file" data-section-id="file">
-        <span class="section-label" title="File operations for Newick trees and image exports. Drag this header to reorder rows.">File</span>
-        <span class="subsection-label">Newick</span>
-        <button id="saveAsBtn" class="action-btn" type="button" title="Save current tree edits to a new tree file (Newick/NEXUS/PhyloXML/NeXML).">Save As...</button>
+        <span class="section-label" title="File operations for tree formats and image exports. Drag this header to reorder rows.">File</span>
+        <span class="subsection-label">Tree</span>
+        <label class="control" for="saveFormatSelect">
+          <select id="saveFormatSelect" title="Save current tree edits to a new tree file in the selected format.">
+            <option value="" selected>Save As...</option>
+            <option value="newick">Newick</option>
+            <option value="nexus">NEXUS</option>
+            <option value="phyloxml">PhyloXML</option>
+            <option value="nexml">NeXML</option>
+          </select>
+        </label>
         <span class="subsection-label subsection-divider">Image</span>
         <button id="exportSvgBtn" class="action-btn" type="button" title="Export the current viewer rendering as SVG.">Export SVG</button>
         <button id="exportPngBtn" class="action-btn" type="button" title="Export the current viewer rendering as PNG.">Export PNG</button>
@@ -421,8 +436,15 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
         <div class="menu-root" data-menu-id="file">
           <button class="menu-trigger" type="button">File</button>
           <div class="menu-dropdown">
-            <div class="menu-group-label">Newick</div>
-            <button id="menuSaveAsBtn" class="menu-item" type="button">Save As...</button>
+            <div class="menu-group-label">Tree</div>
+            <div class="menu-item has-submenu">Save As ▸
+              <div class="menu-submenu">
+                <button class="menu-item menu-save-format-option" type="button" data-save-format="newick">Newick</button>
+                <button class="menu-item menu-save-format-option" type="button" data-save-format="nexus">NEXUS</button>
+                <button class="menu-item menu-save-format-option" type="button" data-save-format="phyloxml">PhyloXML</button>
+                <button class="menu-item menu-save-format-option" type="button" data-save-format="nexml">NeXML</button>
+              </div>
+            </div>
             <div class="menu-sep"></div>
             <div class="menu-group-label">Image</div>
             <button id="menuExportSvgBtn" class="menu-item" type="button">Export SVG</button>
@@ -492,7 +514,7 @@ function getWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webvie
   <div class="status-strip">
     <div class="status-left">
       <span id="rootState" class="badge" title="Rooted means the tree has a designated root direction (ancestor to descendant), i.e., an implied direction of evolution. Unrooted means no explicit root direction.">Rooted: unknown</span>
-      <span id="branchState" class="badge" title="Bifurcating means each internal node splits into exactly two descendants; otherwise it is non-bifurcating (polytomy present).">Bifurcating: unknown</span>
+      <span id="branchState" class="badge" title="Bifurcating means each split has two descendants. In unrooted display mode, the single 3-way display root is expected and is not treated as a polytomy.">Bifurcating: unknown</span>
       <span id="ultrametricState" class="badge" title="Ultrametric means all tips are the same distance from the root (equal root-to-tip path length). Note that being ultrametric does not necessarily mean this is a time tree.">Ultrametric: unknown</span>
       <span id="scaleState" class="badge" title="Scale value shown by the scale bar in branch-length units (or 1 in equal-depth layouts).">Scale: n/a</span>
       <span id="selectionInfo" class="selection-info">Selection: none</span>

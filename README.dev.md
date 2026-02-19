@@ -64,6 +64,7 @@ PhyloLens has two main parts:
 - Performs in-view tree operations (swap, root, unroot, collapse)
 - Tracks sync status against original parsed tree
 - Applies large-tree guardrails (auto-disables expensive overlays)
+- Drives tree save from a single `Save As...` format dropdown (toolbar mode) or format submenu (compact menu mode)
 
 ## Data Model
 
@@ -84,6 +85,7 @@ PhyloLens has two main parts:
    - geometry (edges, nodes)
    - labels (tips, internal labels, branch lengths)
    - overlay (scale bar)
+   - rooted-only ancestral stem at the root
 5. Bind interaction handlers on node circles and edge hit-paths.
 6. Apply viewport transform for zoom/pan.
 
@@ -103,6 +105,8 @@ The web build is produced by `tsc -p tsconfig.web.json`.
 
 Tree metrics helpers (`formatLength`, `isBifurcating`, `isUltrametric`, node counting)
 are now in `media/tree-metrics.js` as the first step of viewer modularization.
+For unrooted trees, bifurcation logic treats the single 3-way display root as expected
+and does not classify that alone as a polytomy.
 
 ## Format Adapters
 

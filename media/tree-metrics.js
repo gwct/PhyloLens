@@ -33,10 +33,11 @@ export function countTreeNodes(tree, getChildren) {
   return count;
 }
 
-export function isBifurcating(tree, getChildren) {
+export function isBifurcating(tree, getChildren, options = {}) {
   if (!tree) {
     return null;
   }
+  const treatAsUnrooted = options.rooted === false;
   const stack = [tree];
   while (stack.length > 0) {
     const node = stack.pop();
@@ -44,7 +45,10 @@ export function isBifurcating(tree, getChildren) {
       continue;
     }
     const children = getChildren(node);
-    if (children.length > 0 && children.length !== 2) {
+    // In unrooted trees represented with an arbitrary display root, that display
+    // root is expected to have 3 incident branches in a fully bifurcating tree.
+    const isAllowedUnrootedDisplayRoot = treatAsUnrooted && node === tree && children.length === 3;
+    if (children.length > 0 && children.length !== 2 && !isAllowedUnrootedDisplayRoot) {
       return false;
     }
     for (const child of children) {

@@ -77,6 +77,19 @@ export function getSaveDialogFilters(): Record<string, string[]> {
   };
 }
 
+export function getSaveDialogFiltersForFormat(format: TreeFormatId): Record<string, string[]> {
+  if (format === "newick") {
+    return { "Newick files": ["nwk", "newick", "tree", "tre", "treefile"] };
+  }
+  if (format === "nexus") {
+    return { "NEXUS files": ["nex", "nexus"] };
+  }
+  if (format === "phyloxml") {
+    return { "PhyloXML files": ["phyloxml", "xml"] };
+  }
+  return { "NeXML files": ["nexml"] };
+}
+
 export function parseTreeText(text: string, filePath?: string): ParseResult {
   const ext = (filePath || "").toLowerCase();
   const byExtension = FORMATS.find((fmt) => fmt.extensions.some((suffix) => ext.endsWith(suffix)));

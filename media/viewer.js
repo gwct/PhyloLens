@@ -35,8 +35,8 @@ const compactSearchCounterEl = document.getElementById("compactSearchCounter");
 const compactMenuRoots = Array.from(document.querySelectorAll(".menu-root"));
 const menuLayoutOptionEls = Array.from(document.querySelectorAll(".menu-layout-option"));
 const menuCheckOptionEls = Array.from(document.querySelectorAll(".menu-check-option"));
+const menuSaveFormatOptionEls = Array.from(document.querySelectorAll(".menu-save-format-option"));
 const menuActionBridge = new Map([
-  ["menuSaveAsBtn", "saveAsBtn"],
   ["menuExportSvgBtn", "exportSvgBtn"],
   ["menuExportPngBtn", "exportPngBtn"],
   ["menuSwapNodeBtn", "swapNodeBtn"],
@@ -63,7 +63,7 @@ const zoomOutBtnEl = document.getElementById("zoomOutBtn");
 const zoomInBtnEl = document.getElementById("zoomInBtn");
 const fitBtnEl = document.getElementById("fitBtn");
 const resetToolbarLayoutBtnEl = document.getElementById("resetToolbarLayoutBtn");
-const saveAsBtnEl = document.getElementById("saveAsBtn");
+const saveFormatSelectEl = document.getElementById("saveFormatSelect");
 const exportSvgBtnEl = document.getElementById("exportSvgBtn");
 const exportPngBtnEl = document.getElementById("exportPngBtn");
 const selectionInfoEl = document.getElementById("selectionInfo");
@@ -527,14 +527,14 @@ if (resetToolbarLayoutBtnEl) {
   });
 }
 
-if (saveAsBtnEl) {
-  saveAsBtnEl.addEventListener("click", () => {
-    if (!workingTree) {
+if (saveFormatSelectEl instanceof HTMLSelectElement) {
+  saveFormatSelectEl.addEventListener("change", () => {
+    const format = getSelectedSaveFormat();
+    if (!format) {
       return;
     }
-    const treeToSave = deepClone(workingTree);
-    expandAllCollapsed(treeToSave);
-    vscode.postMessage({ type: "saveTreeAs", tree: treeToSave });
+    triggerSaveAs(format);
+    saveFormatSelectEl.value = "";
   });
 }
 
@@ -607,6 +607,7 @@ window.addEventListener("message", (event) => {
     sourceTree = deepClone(msg.payload.root);
     workingTree = deepClone(msg.payload.root);
     sourceFormat = normalizeSourceFormat(msg.payload.format);
+    syncSaveFormatControl();
     lastParseMs = Number.isFinite(msg.payload.parseMs) ? Number(msg.payload.parseMs) : null;
     selectedNodeId = null;
     selectedEdgeKey = null;
@@ -802,6 +803,17 @@ function initializeCompactMenus() {
         layoutSelectEl.value = layoutId;
         layoutSelectEl.dispatchEvent(new Event("change"));
       }
+      closeAllMenuSections();
+    });
+  }
+
+  for (const optionEl of menuSaveFormatOptionEls) {
+    if (!(optionEl instanceof HTMLElement)) {
+      continue;
+    }
+    optionEl.addEventListener("click", () => {
+      const format = String(optionEl.getAttribute("data-save-format") || "").toLowerCase();
+      triggerSaveAs(format);
       closeAllMenuSections();
     });
   }
@@ -1185,7 +1197,7 @@ function renderRectangular(root, equalDepth) {
   let maxDepth = 0;
   let leafCount = 0;
 
-  walk(root, 0, true);
+  const rootView = walk(root, 0, true);
 
   const margin = { top: 20, right: 180, bottom: 42, left: 30 };
   const width = Math.max(720, maxDepth * 90 + margin.left + margin.right);
@@ -1204,6 +1216,15 @@ function renderRectangular(root, equalDepth) {
 
   let geometry = "";
   let labels = "";
+
+  if (rootedExplicit === true && Number.isFinite(rootView.sx) && Number.isFinite(rootView.sy)) {
+    const stemLen = Math.max(8, Math.min(18, margin.left - 6));
+    const x1 = rootView.sx - stemLen;
+    const y1 = rootView.sy;
+    const x2 = rootView.sx;
+    const y2 = rootView.sy;
+    geometry += `<path class="root-stem" d="M ${x1} ${y1} L ${x2} ${y2}" />`;
+  }
 
   for (const edge of edges) {
     const selectedClass = edge.key === selectedEdgeKey ? " is-selected" : "";
@@ -1229,9 +1250,11 @@ function renderRectangular(root, equalDepth) {
       })
     : "";
 
-  const polyIds = highlightPolytomies ? new Set(findNonBifurcatingNodeIds(root)) : new Set();
+  const polyIds = highlightPolytomies ? new Set(findNonBifurcatingNodeIds(root, rootedExplicit)) : new Set();
   const matchedNodeIds = new Set(taxaSearchMatches);
-  const hideRootMarker = rootedExplicit === false;
+  // In unrooted mode we normally hide the arbitrary display root marker,
+  // except when it is a true polytomy and user asked to highlight polytomies.
+  const hideRootMarker = rootedExplicit === false && !polyIds.has(root.id);
 
   for (const node of nodes) {
     const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
@@ -1332,6 +1355,16 @@ function renderPolar(root, depthMode, edgeMode) {
   let geometry = "";
   let labels = "";
 
+  if (rootedExplicit === true && Number.isFinite(rootView.sx) && Number.isFinite(rootView.sy)) {
+    const stemLen = 16;
+    const stemAngle = (Number.isFinite(rootView.angle) ? rootView.angle : 0) + Math.PI;
+    const x1 = rootView.sx + stemLen * Math.cos(stemAngle);
+    const y1 = rootView.sy + stemLen * Math.sin(stemAngle);
+    const x2 = rootView.sx;
+    const y2 = rootView.sy;
+    geometry += `<path class="root-stem" d="M ${x1} ${y1} L ${x2} ${y2}" />`;
+  }
+
   for (const edge of edges) {
     const selectedClass = edge.key === selectedEdgeKey ? " is-selected" : "";
     let p;
@@ -1360,9 +1393,11 @@ function renderPolar(root, depthMode, edgeMode) {
       })
     : "";
 
-  const polyIds = highlightPolytomies ? new Set(findNonBifurcatingNodeIds(root)) : new Set();
+  const polyIds = highlightPolytomies ? new Set(findNonBifurcatingNodeIds(root, rootedExplicit)) : new Set();
   const matchedNodeIds = new Set(taxaSearchMatches);
-  const hideRootMarker = rootedExplicit === false;
+  // In unrooted mode we normally hide the arbitrary display root marker,
+  // except when it is a true polytomy and user asked to highlight polytomies.
+  const hideRootMarker = rootedExplicit === false && !polyIds.has(root.id);
 
   for (const node of nodes) {
     const isSearchFocus = matchedNodeIds.has(node.id) && node.id === selectedNodeId && taxaSearchTerm.length > 0;
@@ -2050,7 +2085,7 @@ function inferRooted(tree) {
   return structuralChildren(tree).length === 2;
 }
 
-function findNonBifurcatingNodeIds(tree) {
+function findNonBifurcatingNodeIds(tree, rooted) {
   const out = [];
   if (!tree) {
     return out;
@@ -2064,7 +2099,8 @@ function findNonBifurcatingNodeIds(tree) {
     }
 
     const children = structuralChildren(node);
-    if (children.length > 0 && children.length !== 2) {
+    const isAllowedUnrootedDisplayRoot = rooted === false && node === tree && children.length === 3;
+    if (children.length > 0 && children.length !== 2 && !isAllowedUnrootedDisplayRoot) {
       out.push(node.id);
     }
 
@@ -2134,8 +2170,9 @@ function updateBadges() {
     rootStateEl.className = "badge";
   }
 
-  branchStateEl.title = "Bifurcating means each internal node splits into exactly two descendants; otherwise it is non-bifurcating (polytomy present).";
-  const bif = isBifurcating(workingTree, structuralChildren);
+  branchStateEl.title =
+    "Bifurcating means each split has two descendants. In unrooted display mode, the single 3-way display root is expected and is not treated as a polytomy.";
+  const bif = isBifurcating(workingTree, structuralChildren, { rooted: rootedExplicit });
   if (bif === true) {
     branchStateEl.textContent = "Bifurcating";
     branchStateEl.className = "badge good";
@@ -2254,6 +2291,36 @@ function sourceFormatLabel(value) {
   return "Unknown";
 }
 
+function getSelectedSaveFormat() {
+  if (!(saveFormatSelectEl instanceof HTMLSelectElement)) {
+    return null;
+  }
+  const selected = String(saveFormatSelectEl.value || "").trim().toLowerCase();
+  if (selected === "newick" || selected === "nexus" || selected === "phyloxml" || selected === "nexml") {
+    return selected;
+  }
+  return null;
+}
+
+function triggerSaveAs(format) {
+  if (!workingTree) {
+    return;
+  }
+  if (format !== "newick" && format !== "nexus" && format !== "phyloxml" && format !== "nexml") {
+    return;
+  }
+  const treeToSave = deepClone(workingTree);
+  expandAllCollapsed(treeToSave);
+  vscode.postMessage({ type: "saveTreeAs", tree: treeToSave, format });
+}
+
+function syncSaveFormatControl() {
+  if (!(saveFormatSelectEl instanceof HTMLSelectElement)) {
+    return;
+  }
+  saveFormatSelectEl.value = "";
+}
+
 function updateActionState() {
   if (rerootBtnEl) {
     rerootBtnEl.disabled = !workingTree || !selectedEdgeTargetNodeId;
@@ -2282,8 +2349,8 @@ function updateActionState() {
   if (fitBtnEl) {
     fitBtnEl.disabled = !latestRender || !latestRender.svgEl;
   }
-  if (saveAsBtnEl) {
-    saveAsBtnEl.disabled = !workingTree;
+  if (saveFormatSelectEl instanceof HTMLSelectElement) {
+    saveFormatSelectEl.disabled = !workingTree;
   }
   if (exportSvgBtnEl) {
     exportSvgBtnEl.disabled = !workingTree || !latestRender || !latestRender.svgEl;
@@ -2351,6 +2418,14 @@ function syncCompactMenuState() {
     const layoutId = optionEl.getAttribute("data-layout");
     const active = layoutId === currentLayout;
     optionEl.classList.toggle("is-active", active);
+  }
+
+  const saveDisabled = !workingTree;
+  for (const optionEl of menuSaveFormatOptionEls) {
+    if (!(optionEl instanceof HTMLButtonElement)) {
+      continue;
+    }
+    optionEl.disabled = saveDisabled;
   }
 }
 
@@ -2669,7 +2744,8 @@ function currentSvgMarkup() {
   const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
   styleEl.textContent = `
     .edge { fill: none; stroke: #1f3340; stroke-width: 1.4; }
-    .edge.is-selected { stroke: #177da6; stroke-width: 2.4; }
+    .root-stem { fill: none; stroke: #1f3340; stroke-width: 1.4; }
+    .edge.is-selected { stroke: #ff8c00; stroke-width: 2.4; }
     .node-circle { fill: #ffffff; stroke: #1f3340; stroke-width: 1.2; }
     .node-circle.is-highlighted { stroke: #ff8c00; stroke-width: 2.5; }
     .node-circle.is-polytomy { stroke: #bc1a1a; stroke-width: 2.2; }
