@@ -5,7 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2026-02-19
+## [0.1.3] - 2026-02-24
+
+### Added
+- Large-tree stress fixtures for benchmarking under `examples/generated/`:
+  - `stress_300.nwk`
+  - `stress_600.nwk`
+  - `stress_1200.nwk`
+  - `stress_2500.nwk`
+  - `stress_5000.nwk`
+  - `stress_10000.nwk`
+
+### Changed
+- Large-tree guardrails retuned for lower-resource machines:
+  - large-tree threshold now starts at ~1200 tips
+  - collapse-on-load overview starts at ~2500 tips
+  - safe-mode prompt starts at ~8000 tips
+  - safe mode applies lightweight defaults to reduce render cost
+
+## [0.1.2] - 2026-02-19
 
 ### Added
 - Compact menu mode for smaller screens, with section dropdowns and persistent search controls.
@@ -20,6 +38,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - `examples/polytomy.sample.nexus`
 - Rooted-tree ancestral stem rendering (small branch at the root) across layouts.
 - New discoverability screenshot slot in README (editor icon location).
+- Large-tree safe mode flow for extreme tip counts (prompted lightweight defaults + collapsed overview).
 
 ### Changed
 - Branch selection highlight now uses the same orange color as node selection.

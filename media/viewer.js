@@ -120,11 +120,14 @@ let lastRenderMs = null;
 let lastTreeNodeCount = 0;
 let lastTipCount = 0;
 let didSendLargeTreeWarning = false;
+let didPromptSafeMode = false;
 const hoverInfoEl = createHoverInfoElement();
 
-const LARGE_TREE_TIP_THRESHOLD = 3000;
-const LARGE_TREE_NODE_THRESHOLD = 6000;
-const VERY_LARGE_TREE_NODE_THRESHOLD = 12000;
+const LARGE_TREE_TIP_THRESHOLD = 1200;
+const COLLAPSE_ON_LOAD_TIP_THRESHOLD = 2500;
+const SAFE_MODE_TIP_THRESHOLD = 8000;
+const LARGE_TREE_NODE_THRESHOLD = 2400;
+const VERY_LARGE_TREE_NODE_THRESHOLD = 5000;
 
 if (layoutSelectEl) {
   layoutSelectEl.addEventListener("change", () => {
@@ -588,6 +591,7 @@ window.addEventListener("message", (event) => {
     lastTreeNodeCount = 0;
     lastTipCount = 0;
     didSendLargeTreeWarning = false;
+    didPromptSafeMode = false;
     hasUserViewport = false;
     viewTransform = { tx: 0, ty: 0, scale: 1 };
     hideHoverInfo();
@@ -619,6 +623,7 @@ window.addEventListener("message", (event) => {
     lastTreeNodeCount = countTreeNodes(workingTree, structuralChildren);
     lastTipCount = countTips(workingTree);
     didSendLargeTreeWarning = false;
+    didPromptSafeMode = false;
     applyLargeTreeGuardrails();
     refreshTaxaSearchMatches();
     hasUserViewport = false;
@@ -2098,7 +2103,7 @@ function findNonBifurcatingNodeIds(tree, rooted) {
       continue;
     }
 
-    const children = structuralChildren(node);
+    const children = Array.isArray(node.children) ? node.children : [];
     const isAllowedUnrootedDisplayRoot = rooted === false && node === tree && children.length === 3;
     if (children.length > 0 && children.length !== 2 && !isAllowedUnrootedDisplayRoot) {
       out.push(node.id);
@@ -2234,10 +2239,29 @@ function applyLargeTreeGuardrails() {
   }
 
   const isLarge = lastTipCount >= LARGE_TREE_TIP_THRESHOLD || lastTreeNodeCount >= LARGE_TREE_NODE_THRESHOLD;
+  const needsCollapseOnLoad = lastTipCount >= COLLAPSE_ON_LOAD_TIP_THRESHOLD;
+  const shouldOfferSafeMode = lastTipCount >= SAFE_MODE_TIP_THRESHOLD;
   const isVeryLarge = lastTreeNodeCount >= VERY_LARGE_TREE_NODE_THRESHOLD;
 
   let changedViewOptions = false;
-  // These toggles are the biggest renderer multipliers on very large trees.
+  let collapsedOnLoad = false;
+  let safeModeEnabled = false;
+
+  if (shouldOfferSafeMode && !didPromptSafeMode) {
+    didPromptSafeMode = true;
+    safeModeEnabled = window.confirm(
+      "This tree is very large and may be slow to render.\n\nOpen in safe mode? Safe mode uses lightweight defaults (equal layout, reduced overlays, collapsed overview)."
+    );
+    if (safeModeEnabled) {
+      applySafeModeDefaults();
+      changedViewOptions = true;
+      if (collapseToVisibleTipTarget(workingTree, 900)) {
+        collapsedOnLoad = true;
+      }
+    }
+  }
+
+  // These toggles are the biggest renderer multipliers on large trees.
   // Disable them automatically once per tree load to keep first paint responsive.
   if (isLarge && showBranchHoverDetails) {
     showBranchHoverDetails = false;
@@ -2253,15 +2277,158 @@ function applyLargeTreeGuardrails() {
     }
     changedViewOptions = true;
   }
+  if (isLarge && showBranchLengths) {
+    showBranchLengths = false;
+    if (showLengthsSelectEl) {
+      showLengthsSelectEl.checked = false;
+    }
+    changedViewOptions = true;
+  }
+  if (needsCollapseOnLoad && collapseToVisibleTipTarget(workingTree, 1200)) {
+    collapsedOnLoad = true;
+  }
 
-  if (changedViewOptions && !didSendLargeTreeWarning) {
+  if ((changedViewOptions || collapsedOnLoad || safeModeEnabled) && !didSendLargeTreeWarning) {
     didSendLargeTreeWarning = true;
+    const notes = [];
+    if (safeModeEnabled) {
+      notes.push("safe mode presets were applied");
+    } else {
+      if (changedViewOptions) {
+        notes.push("expensive overlays were disabled");
+      }
+      if (collapsedOnLoad) {
+        notes.push("the tree was collapsed to an overview");
+      }
+    }
+    const detail = notes.length > 0 ? notes.join("; ") : "defaults were adjusted";
     vscode.postMessage({
       type: "notify",
       level: "warning",
-      text: "Large tree detected: hover details (and for very large trees, internal labels) were disabled to keep rendering responsive.",
+      text: `Large tree mode: ${detail} to keep rendering responsive.`,
     });
   }
+}
+
+function applySafeModeDefaults() {
+  currentLayout = "cladogram";
+  if (layoutSelectEl instanceof HTMLSelectElement) {
+    layoutSelectEl.value = "cladogram";
+  }
+
+  showBranchLengths = false;
+  if (showLengthsSelectEl instanceof HTMLInputElement) {
+    showLengthsSelectEl.checked = false;
+  }
+
+  showBranchHoverDetails = false;
+  if (showBranchHoverDetailsSelectEl instanceof HTMLInputElement) {
+    showBranchHoverDetailsSelectEl.checked = false;
+  }
+
+  showInternalLabels = false;
+  if (showInternalLabelsSelectEl instanceof HTMLInputElement) {
+    showInternalLabelsSelectEl.checked = false;
+  }
+
+  showTipLabels = false;
+  if (showTipLabelsSelectEl instanceof HTMLInputElement) {
+    showTipLabelsSelectEl.checked = false;
+  }
+
+  showNodeShapes = false;
+  if (showNodeShapesSelectEl instanceof HTMLInputElement) {
+    showNodeShapesSelectEl.checked = false;
+  }
+}
+
+function collapseToVisibleTipTarget(root, targetVisibleTips) {
+  if (!root || !Number.isFinite(targetVisibleTips)) {
+    return false;
+  }
+  const tipCounts = computeVisibleTipCounts(root);
+  let visible = tipCounts.get(root.id) || 0;
+  if (visible <= targetVisibleTips) {
+    return false;
+  }
+
+  const candidates = [];
+  const stack = [{ node: root, depth: 0 }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || !current.node) {
+      continue;
+    }
+    const node = current.node;
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (children.length > 0) {
+      const tips = tipCounts.get(node.id) || 0;
+      if (current.depth > 0 && tips > 1) {
+        candidates.push({ node, depth: current.depth, tips });
+      }
+      for (const child of children) {
+        stack.push({ node: child, depth: current.depth + 1 });
+      }
+    }
+  }
+
+  candidates.sort((a, b) => {
+    if (b.tips !== a.tips) {
+      return b.tips - a.tips;
+    }
+    return b.depth - a.depth;
+  });
+
+  let changed = false;
+  for (const candidate of candidates) {
+    if (visible <= targetVisibleTips) {
+      break;
+    }
+    const node = candidate.node;
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (children.length === 0) {
+      continue;
+    }
+    const tips = candidate.tips;
+    if (tips <= 1) {
+      continue;
+    }
+    node._collapsedChildren = children;
+    node.children = [];
+    visible -= tips - 1;
+    changed = true;
+  }
+  return changed;
+}
+
+function computeVisibleTipCounts(root) {
+  const counts = new Map();
+  const stack = [{ node: root, visited: false }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || !current.node) {
+      continue;
+    }
+    const node = current.node;
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (!current.visited) {
+      stack.push({ node, visited: true });
+      for (const child of children) {
+        stack.push({ node: child, visited: false });
+      }
+      continue;
+    }
+    if (children.length === 0) {
+      counts.set(node.id, 1);
+      continue;
+    }
+    let total = 0;
+    for (const child of children) {
+      total += counts.get(child.id) || 0;
+    }
+    counts.set(node.id, total);
+  }
+  return counts;
 }
 
 function normalizeSourceFormat(value) {
@@ -2519,7 +2686,7 @@ function refreshTaxaSearchMatches() {
       matches.push(node.id);
     }
 
-    const children = Array.isArray(node.children) ? node.children : [];
+    const children = structuralChildren(node);
     for (const child of children) {
       stack.push(child);
     }

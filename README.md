@@ -74,6 +74,10 @@ Compact menu mode used on smaller screens.
 - Search taxon/node labels with `Prev/Next`, `Clear`, and a match counter.
 - Branch hover details (length and descendant tip count).
 - Rooted layouts render a short ancestral stem at the root.
+- Large-tree guardrails:
+  - auto-disable expensive overlays for large trees
+  - auto-collapse very large trees to an overview
+  - optional `Safe mode` prompt for extremely large trees
 
 ## Metadata Badges
 
